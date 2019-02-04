@@ -1,6 +1,3 @@
-wsgraphql - graphql-go over websockets 
-===
-
 [![](https://godoc.org/github.com/eientei/wsgraphql?status.svg)](https://godoc.org/github.com/eientei/wsgraphql)
 
 Basically an implementation of [apollo graphql](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md) websocket protocol for [graphql-go](https://github.com/graphql-go/graphql).
@@ -14,4 +11,4 @@ Key features:
 - Supports both websockets and plain http queries (with exception of continuing subscriptions)
 - Mutable context allowing to keep global-scoped connection/authentication data and subscription-scoped state
 
-PullRequests are surely welcome.
+Feedback/PR is surely welcome.
