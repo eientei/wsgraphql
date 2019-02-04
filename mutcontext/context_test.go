@@ -44,7 +44,7 @@ func TestCreateNew(t *testing.T) {
 	if !called {
 		t.Error("cleanup was not called")
 	}
-	if !m.WasCompleted() {
+	if !m.Completed() {
 		t.Error("cancelled flag not set")
 	}
 }

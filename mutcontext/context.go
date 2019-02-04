@@ -20,7 +20,7 @@ type MutableContext interface {
 	Cancel() error
 	SetCleanup(cleanup FuncCleanup)
 	Complete()
-	WasCompleted() bool
+	Completed() bool
 }
 
 // Basic interface implementation, also uses map instead of delegates for efficiency for many keys
@@ -90,7 +90,7 @@ func (ctx *mutableContext) Complete() {
 }
 
 // indicates context was completed normally
-func (ctx *mutableContext) WasCompleted() bool {
+func (ctx *mutableContext) Completed() bool {
 	return ctx.IsComplete
 }
 

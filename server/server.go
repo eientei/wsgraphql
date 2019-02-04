@@ -267,7 +267,7 @@ loop:
 
 					conn.Outgoing <- proto.NewMessage(sub.Id, res, proto.GQLData)
 
-					if len(res.Errors) > 0 || !issub || sub.Context.Err() != nil || sub.Context.WasCompleted() {
+					if len(res.Errors) > 0 || !issub || sub.Context.Err() != nil || sub.Context.Completed() {
 						break
 					}
 				}
