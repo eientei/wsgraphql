@@ -84,6 +84,7 @@ func (ctx *mutableContext) Complete() {
 		return
 	}
 	ctx.IsComplete = true
+	_ = ctx.Cancel()
 	if ctx.CleanupFunc != nil {
 		ctx.CleanupFunc()
 	}

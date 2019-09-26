@@ -160,20 +160,31 @@ func (conn *Connection) ReadLoop(ws *websocket.Conn) {
 
 // writes messages to websocket
 func (conn *Connection) WriteLoop(ws *websocket.Conn) {
-	for o := range conn.Outgoing {
-		if o.Type == proto.GQLConnectionClose {
-			if o.Payload != nil && o.Payload.Value != nil {
-				_ = ws.WriteJSON(proto.NewMessage("", o.Payload, proto.GQLConnectionError))
+	for {
+		select {
+		case o, ok := <-conn.Outgoing:
+			if !ok {
+				_ = ws.Close()
+				conn.Events <- &EventConnectionWriteClosed{}
 			}
+			if o.Type == proto.GQLConnectionClose {
+				if o.Payload != nil && o.Payload.Value != nil {
+					_ = ws.WriteJSON(proto.NewMessage("", o.Payload, proto.GQLConnectionError))
+				}
+				_ = ws.Close()
+				conn.Events <- &EventConnectionWriteClosed{}
+				return
+			}
+			err := ws.WriteJSON(o)
+			if err != nil {
+				_ = ws.Close()
+				conn.Events <- &EventConnectionWriteClosed{}
+				return
+			}
+		case <-conn.Context.Done():
 			_ = ws.Close()
 			conn.Events <- &EventConnectionWriteClosed{}
-			break
-		}
-		err := ws.WriteJSON(o)
-		if err != nil {
-			_ = ws.Close()
-			conn.Events <- &EventConnectionWriteClosed{}
-			break
+			return
 		}
 	}
 }
@@ -309,6 +320,7 @@ loop:
 				break loop
 			}
 		case *EventConnectionReadClosed:
+			conn.Context.Cancel()
 			atomic.AddInt32(&conn.Stopcounter, 1)
 			if atomic.LoadInt32(&conn.Stopcounter) >= 2 {
 				break loop
