@@ -4,6 +4,7 @@ package mutcontext
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,7 @@ type mutableContext struct {
 	CleanupFunc FuncCleanup
 	Values      map[interface{}]interface{}
 	IsComplete  bool
+	mutex       *sync.Mutex
 }
 
 // Pass-through to parent context
@@ -49,6 +51,8 @@ func (ctx *mutableContext) Err() error {
 
 // If contained in local map, use that, otherwise pass-through to parent context
 func (ctx *mutableContext) Value(key interface{}) interface{} {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 	if v, ok := ctx.Values[key]; ok {
 		return v
 	}
@@ -57,6 +61,8 @@ func (ctx *mutableContext) Value(key interface{}) interface{} {
 
 // Put value in local map
 func (ctx *mutableContext) Set(key, value interface{}) {
+	ctx.mutex.Lock()
+	defer ctx.mutex.Unlock()
 	ctx.Values[key] = value
 }
 
@@ -100,6 +106,7 @@ func CreateNew(ctx context.Context) MutableContext {
 	return &mutableContext{
 		Context: ctx,
 		Values:  make(map[interface{}]interface{}),
+		mutex: &sync.Mutex{},
 	}
 }
 
@@ -109,5 +116,6 @@ func CreateNewCancel(ctx context.Context, cancel context.CancelFunc) MutableCont
 		Context:    ctx,
 		CancelFunc: cancel,
 		Values:     make(map[interface{}]interface{}),
+		mutex: &sync.Mutex{},
 	}
 }

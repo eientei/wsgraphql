@@ -5,3 +5,5 @@ require (
 	github.com/graphql-go/graphql v0.7.7
 	github.com/kr/pretty v0.1.0 // indirect
 )
+
+go 1.13
