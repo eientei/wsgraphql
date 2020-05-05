@@ -129,11 +129,14 @@ func (conn *Connection) ReadLoop(ws *websocket.Conn) {
 		switch msg.Type {
 		case proto.GQLConnectionInit:
 			var value interface{}
-			err := json.Unmarshal(payloadbytes.Bytes, &value)
-			if err != nil {
-				conn.Outgoing <- proto.NewMessage("", err.Error(), proto.GQLConnectionError)
-				continue
+			if len(payloadbytes.Bytes) > 0 {
+				err := json.Unmarshal(payloadbytes.Bytes, &value)
+				if err != nil {
+					conn.Outgoing <- proto.NewMessage("", err.Error(), proto.GQLConnectionError)
+					continue
+				}
 			}
+
 			conn.Events <- &EventConnectionInit{
 				Parameters: value,
 			}
