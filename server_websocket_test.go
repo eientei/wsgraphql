@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eientei/wsgraphql/v1/apollows"
+	"github.com/eientei/wsgraphql/apollows"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 )

@@ -1,5 +1,5 @@
-[![Go Doc Reference](https://godoc.org/github.com/eientei/wsgraphql/v1?status.svg)](https://godoc.org/github.com/eientei/wsgraphql/v1)
-[![Go Report Card](https://goreportcard.com/badge/github.com/eientei/wsgraphql/v1)](https://goreportcard.com/report/github.com/eientei/wsgraphql/v1)
+[![Go Doc Reference](https://godoc.org/github.com/eientei/wsgraphql?status.svg)](https://godoc.org/github.com/eientei/wsgraphql/v1)
+[![Go Report Card](https://goreportcard.com/badge/github.com/eientei/wsgraphql)](https://goreportcard.com/report/github.com/eientei/wsgraphql/v1)
 
 
 An implementation of
@@ -14,5 +14,5 @@ Key features:
 - Subscription support
 - Callbacks at every stage of communication process for easy customization 
 - Supports both websockets and plain http queries
-- [Mutable context](https://godoc.org/github.com/eientei/wsgraphql/v1/mutable) allowing to keep request-scoped 
+- [Mutable context](https://godoc.org/github.com/eientei/wsgraphql/mutable) allowing to keep request-scoped 
   connection/authentication data and operation-scoped state

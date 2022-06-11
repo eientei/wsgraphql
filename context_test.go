@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/eientei/wsgraphql/v1/mutable"
+	"github.com/eientei/wsgraphql/mutable"
 	"github.com/graphql-go/graphql/language/ast"
 	"github.com/stretchr/testify/assert"
 )

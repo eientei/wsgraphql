@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/eientei/wsgraphql/v1/apollows"
-	"github.com/eientei/wsgraphql/v1/mutable"
+	"github.com/eientei/wsgraphql/apollows"
+	"github.com/eientei/wsgraphql/mutable"
 	"github.com/graphql-go/graphql"
 )
 

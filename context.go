@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/eientei/wsgraphql/v1/mutable"
+	"github.com/eientei/wsgraphql/mutable"
 	"github.com/graphql-go/graphql/language/ast"
 )
 

@@ -2,7 +2,7 @@
 package wsgraphql
 
 import (
-	"github.com/eientei/wsgraphql/v1/apollows"
+	"github.com/eientei/wsgraphql/apollows"
 )
 
 // WebsocketSubprotocol defines websocket subprotocol expected by this implementation by default

@@ -4,7 +4,7 @@ package gorillaws
 import (
 	"net/http"
 
-	"github.com/eientei/wsgraphql/v1"
+	"github.com/eientei/wsgraphql"
 
 	"github.com/gorilla/websocket"
 )
