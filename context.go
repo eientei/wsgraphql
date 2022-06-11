@@ -45,16 +45,22 @@ var (
 	ContextKeyOperationStopped = contextKeyOperationStoppedT{}
 )
 
+func defaultMutcontext(ctx context.Context, mutctx mutable.Context) mutable.Context {
+	if mutctx != nil {
+		return mutctx
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return mutable.NewMutableContext(ctx)
+}
+
 // RequestContext returns HTTP request-scoped mutable context from provided context or nil if none present
 func RequestContext(ctx context.Context) (mutctx mutable.Context) {
 	defer func() {
-		if mutctx == nil {
-			if ctx == nil {
-				ctx = context.Background()
-			}
-
-			mutctx = mutable.NewMutableContext(ctx)
-		}
+		mutctx = defaultMutcontext(ctx, mutctx)
 	}()
 
 	v := ctx.Value(ContextKeyRequestContext)
@@ -73,13 +79,7 @@ func RequestContext(ctx context.Context) (mutctx mutable.Context) {
 // OperationContext returns graphql operation-scoped mutable context from provided context or nil if none present
 func OperationContext(ctx context.Context) (mutctx mutable.Context) {
 	defer func() {
-		if mutctx == nil {
-			if ctx == nil {
-				ctx = context.Background()
-			}
-
-			mutctx = mutable.NewMutableContext(ctx)
-		}
+		mutctx = defaultMutcontext(ctx, mutctx)
 	}()
 
 	v := ctx.Value(ContextKeyOperationContext)
