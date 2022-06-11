@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/eientei/wsgraphql/apollows"
-	"github.com/eientei/wsgraphql/mutable"
+	"github.com/eientei/wsgraphql/v1/apollows"
+	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/stretchr/testify/assert"
 )
 

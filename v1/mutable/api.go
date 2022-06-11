@@ -1,4 +1,4 @@
-// Package mutable provides mutable context, that can store multiple values and be updated after creation
+// Package mutable provides v1.mutable context, that can store multiple values and be updated after creation
 package mutable
 
 import (

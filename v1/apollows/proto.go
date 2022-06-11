@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-// WebsocketSubprotocol defines websocket subprotocol expected by apollows implementations
+// WebsocketSubprotocol defines websocket subprotocol expected by v1.apollows implementations
 const WebsocketSubprotocol = "graphql-ws"
 
 // Operation type is used to enumerate possible apollo message types
@@ -130,7 +130,7 @@ type PayloadDataResponse struct {
 	Errors []PayloadError         `json:"errors,omitempty"`
 }
 
-// Message encapsulates every message within apollows protocol in both directions
+// Message encapsulates every message within v1.apollows protocol in both directions
 type Message struct {
 	ID      string    `json:"id,omitempty"`
 	Type    Operation `json:"type"`

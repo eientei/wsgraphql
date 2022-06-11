@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/eientei/wsgraphql/apollows"
-	"github.com/eientei/wsgraphql/mutable"
+	"github.com/eientei/wsgraphql/v1/apollows"
+	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/gqlerrors"
 	"github.com/graphql-go/graphql/language/ast"

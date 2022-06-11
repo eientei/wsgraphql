@@ -17,3 +17,50 @@ Key features:
 - Supports both websockets and plain http queries
 - [Mutable context](https://godoc.org/github.com/eientei/wsgraphql/mutable) allowing to keep request-scoped 
   connection/authentication data and operation-scoped state
+
+Usage
+-----
+
+Assuming [gorilla websocket](https://github.com/gorilla/websocket) upgrader
+
+```go
+import (
+	"net/http"
+
+	"github.com/eientei/wsgraphql/v1"
+	"github.com/eientei/wsgraphql/v1/compat/gorillaws"
+	"github.com/gorilla/websocket"
+	"github.com/graphql-go/graphql"
+)
+```
+
+```go
+schema, err := graphql.NewSchema(...)
+
+srv, err := wsgraphql.NewServer(
+	schema,
+	nil,
+	wsgraphql.WithUpgrader(gorillaws.Wrap(&websocket.Upgrader{
+		Subprotocols: []string{wsgraphql.WebsocketSubprotocol},
+	})),
+)
+if err != nil {
+	panic(err)
+}
+
+if err != nil {
+	panic(err)
+}
+
+http.Handle("/query", srv)
+
+err = http.ListenAndServe(":8080", nil)
+if err != nil {
+	panic(err)
+}
+```
+
+Examples
+--------
+
+See [/v1/examples](/v1/examples)

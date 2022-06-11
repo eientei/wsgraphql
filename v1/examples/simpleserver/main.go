@@ -1,4 +1,3 @@
-// Package server example wsgraphql server with subscriptions
 package main
 
 import (
@@ -10,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/eientei/wsgraphql"
-	"github.com/eientei/wsgraphql/compat/gorillaws"
+	"github.com/eientei/wsgraphql/v1"
+	"github.com/eientei/wsgraphql/v1/compat/gorillaws"
 	"github.com/gorilla/websocket"
 	"github.com/graphql-go/graphql"
 )
@@ -150,9 +149,6 @@ func main() {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			Subprotocols:    []string{wsgraphql.WebsocketSubprotocol},
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
 		})),
 	)
 	if err != nil {

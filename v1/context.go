@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/eientei/wsgraphql/mutable"
+	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql/language/ast"
 )
 
@@ -53,7 +53,7 @@ func defaultMutcontext(ctx context.Context, mutctx mutable.Context) mutable.Cont
 	return mutable.NewMutableContext(ctx)
 }
 
-// RequestContext returns HTTP request-scoped mutable context from provided context or nil if none present
+// RequestContext returns HTTP request-scoped v1.mutable context from provided context or nil if none present
 func RequestContext(ctx context.Context) (mutctx mutable.Context) {
 	defer func() {
 		mutctx = defaultMutcontext(ctx, mutctx)
@@ -72,7 +72,7 @@ func RequestContext(ctx context.Context) (mutctx mutable.Context) {
 	return mutctx
 }
 
-// OperationContext returns graphql operation-scoped mutable context from provided context or nil if none present
+// OperationContext returns graphql operation-scoped v1.mutable context from provided context or nil if none present
 func OperationContext(ctx context.Context) (mutctx mutable.Context) {
 	defer func() {
 		mutctx = defaultMutcontext(ctx, mutctx)
