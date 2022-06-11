@@ -287,3 +287,48 @@ func TestNewServerWebsocketKeepalive(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, apollows.OperationKeepAlive, msg.Type)
 }
+
+func TestNewServerWebsocketTerminate(t *testing.T) {
+	srv := testNewServer(t)
+
+	defer srv.Close()
+
+	u := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
+		"sec-websocket-protocol": []string{WebsocketSubprotocol},
+	})
+
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = conn.Close()
+		_ = resp.Body.Close()
+	}()
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:      "",
+		Type:    apollows.OperationConnectionInit,
+		Payload: apollows.Data{},
+	})
+
+	assert.NoError(t, err)
+
+	var msg apollows.Message
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationConnectionAck, msg.Type)
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:   "",
+		Type: apollows.OperationTerminate,
+	})
+
+	assert.NoError(t, err)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.Error(t, err)
+}

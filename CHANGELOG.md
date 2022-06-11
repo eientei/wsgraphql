@@ -1,3 +1,7 @@
+v1.2.2
+------
+- Correct termination request handling
+
 v1.2.1
 ------
 - Fixes, clarifications for websocket request teardown sequence

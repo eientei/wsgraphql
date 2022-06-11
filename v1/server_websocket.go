@@ -169,9 +169,7 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
 
 func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) {
 	req.m.RLock()
-
 	prev, ok := req.operations[msg.ID]
-
 	req.m.RUnlock()
 
 	if ok {
@@ -183,7 +181,7 @@ func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) {
 func (req *websocketRequest) readWebsocketTerminate() {
 	req.ctx.Set(ContextKeyOperationStopped, true)
 
-	req.ctx.Cancel()
+	_ = req.ws.Close()
 }
 
 func (req *websocketRequest) readWebsocket() {
