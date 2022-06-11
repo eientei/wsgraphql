@@ -36,6 +36,9 @@ import (
 
 ```go
 schema, err := graphql.NewSchema(...)
+if err != nil {
+	panic(err)
+}
 
 srv, err := wsgraphql.NewServer(
 	schema,
@@ -44,10 +47,6 @@ srv, err := wsgraphql.NewServer(
 		Subprotocols: []string{wsgraphql.WebsocketSubprotocol},
 	})),
 )
-if err != nil {
-	panic(err)
-}
-
 if err != nil {
 	panic(err)
 }
