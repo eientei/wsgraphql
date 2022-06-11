@@ -42,7 +42,7 @@ func (server *serverImpl) servePlainRequest(
 	if result != nil {
 		err = server.callbacks.OnOperation(opctx, &payload)
 		if err != nil {
-			return err
+			return
 		}
 
 		err = json.NewEncoder(w).Encode(result)
@@ -55,15 +55,15 @@ func (server *serverImpl) servePlainRequest(
 		return
 	}
 
-	var flusher http.Flusher
-
-	var cres chan *graphql.Result
-
 	w.Header().Set("content-type", "application/json")
+
+	var (
+		cres    chan *graphql.Result
+		flusher http.Flusher
+	)
 
 	if subscription {
 		flusher, _ = w.(http.Flusher)
-
 		w.Header().Set("x-content-type-options", "nosniff")
 		w.Header().Set("connection", "keep-alive")
 
@@ -77,7 +77,6 @@ func (server *serverImpl) servePlainRequest(
 		})
 	} else {
 		cres = make(chan *graphql.Result, 1)
-
 		cres <- graphql.Execute(graphql.ExecuteParams{
 			Schema:        server.schema,
 			Root:          server.rootObject,
@@ -86,7 +85,6 @@ func (server *serverImpl) servePlainRequest(
 			Args:          payload.Variables,
 			Context:       params.Context,
 		})
-
 		close(cres)
 	}
 

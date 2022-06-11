@@ -9,7 +9,18 @@ import (
 	"github.com/eientei/wsgraphql/apollows"
 	"github.com/eientei/wsgraphql/mutable"
 	"github.com/graphql-go/graphql"
+	"github.com/graphql-go/graphql/gqlerrors"
 )
+
+type websocketRequest struct {
+	ctx        mutable.Context
+	outgoing   chan *apollows.Message
+	operations map[string]mutable.Context
+	ws         Conn
+	server     *serverImpl
+	wg         sync.WaitGroup
+	m          sync.RWMutex
+}
 
 func (server *serverImpl) serveWebsocketRequest(
 	reqctx mutable.Context,
@@ -23,8 +34,6 @@ func (server *serverImpl) serveWebsocketRequest(
 
 	reqctx.Set(ContextKeyWebsocketConnection, ws)
 
-	outgoing := make(chan *apollows.Message)
-
 	var tickerch <-chan time.Time
 
 	if server.keepalive > 0 {
@@ -37,12 +46,20 @@ func (server *serverImpl) serveWebsocketRequest(
 		tickerch = ticker.C
 	}
 
-	go server.readWebsocket(reqctx, ws, outgoing)
+	req := &websocketRequest{
+		ctx:        reqctx,
+		outgoing:   make(chan *apollows.Message),
+		operations: make(map[string]mutable.Context),
+		ws:         ws,
+		server:     server,
+	}
+
+	go req.readWebsocket()
 
 	for {
 		select {
 		case <-reqctx.Done():
-		case msg, ok := <-outgoing:
+		case msg, ok := <-req.outgoing:
 			if !ok {
 				return
 			}
@@ -62,173 +79,179 @@ func (server *serverImpl) serveWebsocketRequest(
 	}
 }
 
-func (server *serverImpl) writeWebsocketData(ws Conn, id string, t apollows.Operation, data interface{}) {
-	_ = ws.WriteJSON(&apollows.Message{
+func (req *websocketRequest) writeWebsocketData(id string, data *graphql.Result) {
+	t := apollows.OperationData
+	if data.HasErrors() {
+		t = apollows.OperationError
+	}
+
+	req.outgoing <- &apollows.Message{
 		ID:   id,
 		Type: t,
 		Payload: apollows.Data{
 			Value: data,
 		},
-	})
+	}
 }
 
-func (server *serverImpl) readWebsocket(reqctx mutable.Context, ws Conn, outgoing chan *apollows.Message) {
-	var err error
+func (req *websocketRequest) writeWebsocketMessage(id string, t apollows.Operation, data interface{}) {
+	req.outgoing <- &apollows.Message{
+		ID:   id,
+		Type: t,
+		Payload: apollows.Data{
+			Value: data,
+		},
+	}
+}
 
-	wg := &sync.WaitGroup{}
+func (req *websocketRequest) readWebsocketInit(msg *apollows.Message) (err error) {
+	init := make(apollows.PayloadInit)
+
+	err = json.Unmarshal(msg.Payload.RawMessage, &init)
+	if err != nil {
+		return
+	}
+
+	err = req.server.callbacks.OnConnect(req.ctx, init)
+	if err != nil {
+		return
+	}
+
+	req.writeWebsocketMessage("", apollows.OperationConnectionAck, nil)
+
+	return
+}
+
+func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
+	req.m.RLock()
+	prev, ok := req.operations[msg.ID]
+	req.m.RUnlock()
+
+	if ok {
+		prev.Cancel()
+	}
+
+	opctx := mutable.NewMutableContext(req.ctx)
+
+	req.m.Lock()
+	req.operations[msg.ID] = opctx
+	req.m.Unlock()
+
+	req.wg.Add(1)
+
+	go func() {
+		payload, err := req.serveWebsocketOperation(opctx, msg)
+
+		err = req.server.callbacks.OnOperationDone(opctx, &payload, err)
+
+		if err != nil {
+			req.writeWebsocketData(msg.ID, &graphql.Result{
+				Errors: []gqlerrors.FormattedError{
+					{
+						Message: err.Error(),
+					},
+				},
+			})
+		}
+
+		req.writeWebsocketMessage(msg.ID, apollows.OperationComplete, nil)
+
+		opctx.Cancel()
+
+		req.wg.Done()
+
+		req.m.Lock()
+		delete(req.operations, msg.ID)
+		req.m.Unlock()
+	}()
+}
+
+func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) {
+	req.m.RLock()
+
+	prev, ok := req.operations[msg.ID]
+
+	req.m.RUnlock()
+
+	if ok {
+		prev.Set(ContextKeyOperationStopped, true)
+		prev.Cancel()
+	}
+}
+
+func (req *websocketRequest) readWebsocketTerminate() {
+	req.ctx.Set(ContextKeyOperationStopped, true)
+
+	req.ctx.Cancel()
+}
+
+func (req *websocketRequest) readWebsocket() {
+	var err error
 
 	defer func() {
 		if err != nil {
-			server.writeWebsocketData(ws, "", apollows.OperationConnectionError, err.Error())
+			req.writeWebsocketMessage("", apollows.OperationConnectionError, err.Error())
 		}
 
-		reqctx.Cancel()
+		req.ctx.Cancel()
 
-		wg.Wait()
+		req.wg.Wait()
 
-		close(outgoing)
+		close(req.outgoing)
 	}()
-
-	operations := make(map[string]mutable.Context)
-
-	m := &sync.RWMutex{}
 
 	for {
 		var msg apollows.Message
 
-		err = ws.ReadJSON(&msg)
-
+		err = req.ws.ReadJSON(&msg)
 		if err != nil {
 			return
 		}
 
 		switch msg.Type {
 		case apollows.OperationConnectionInit:
-			init := make(apollows.PayloadInit)
-
-			err = json.Unmarshal(msg.Payload.RawMessage, &init)
-			if err != nil {
-				return
-			}
-
-			err = server.callbacks.OnConnect(reqctx, init)
-			if err != nil {
-				return
-			}
-
-			server.writeWebsocketData(ws, "", apollows.OperationConnectionAck, nil)
+			err = req.readWebsocketInit(&msg)
 		case apollows.OperationStart:
-			m.RLock()
-
-			prev, ok := operations[msg.ID]
-
-			m.RUnlock()
-
-			if ok {
-				prev.Cancel()
-			}
-
-			opctx := mutable.NewMutableContext(reqctx)
-
-			m.Lock()
-
-			operations[msg.ID] = opctx
-
-			m.Unlock()
-
-			wg.Add(1)
-
-			go func() {
-				server.serveWebsocketOperation(opctx, msg, outgoing)
-
-				opctx.Cancel()
-
-				wg.Done()
-
-				m.Lock()
-
-				delete(operations, msg.ID)
-
-				m.Unlock()
-			}()
+			req.readWebsocketStart(&msg)
 		case apollows.OperationStop:
-			m.RLock()
-
-			prev, ok := operations[msg.ID]
-
-			m.RUnlock()
-
-			if ok {
-				prev.Set(ContextKeyOperationStopped, true)
-				prev.Cancel()
-			}
+			req.readWebsocketStop(&msg)
 		case apollows.OperationTerminate:
-			reqctx.Set(ContextKeyOperationStopped, true)
+			req.readWebsocketTerminate()
+		}
 
-			reqctx.Cancel()
+		if err != nil {
+			return
 		}
 	}
 }
 
-func (server *serverImpl) serveWebsocketOperation(
+func (req *websocketRequest) serveWebsocketOperation(
 	opctx mutable.Context,
-	msg apollows.Message,
-	outgoing chan *apollows.Message,
-) {
-	var err error
-
-	var payload apollows.PayloadOperation
-
-	defer func() {
-		err = server.callbacks.OnOperationDone(opctx, &payload, err)
-
-		if err != nil {
-			outgoing <- &apollows.Message{
-				ID:   msg.ID,
-				Type: apollows.OperationError,
-				Payload: apollows.Data{
-					Value: apollows.PayloadData{
-						Errors: []error{err},
-					},
-				},
-			}
-		}
-
-		outgoing <- &apollows.Message{
-			ID:   msg.ID,
-			Type: apollows.OperationComplete,
-		}
-	}()
-
+	msg *apollows.Message,
+) (payload apollows.PayloadOperation, err error) {
 	err = json.Unmarshal(msg.Payload.RawMessage, &payload)
 	if err != nil {
 		return
 	}
 
-	err = server.callbacks.OnConnect(opctx, nil)
+	err = req.server.callbacks.OnConnect(opctx, nil)
 	if err != nil {
 		return
 	}
 
-	params, astdoc, subscription, result := server.parseAST(opctx, &payload)
+	params, astdoc, subscription, result := req.server.parseAST(opctx, &payload)
 	if result != nil {
-		err = server.callbacks.OnOperation(opctx, &payload)
+		err = req.server.callbacks.OnOperation(opctx, &payload)
 		if err != nil {
 			return
 		}
 
-		outgoing <- &apollows.Message{
-			ID:   msg.ID,
-			Type: apollows.OperationError,
-			Payload: apollows.Data{
-				Value: result,
-			},
-		}
+		req.writeWebsocketData(msg.ID, result)
 
 		return
 	}
 
-	err = server.callbacks.OnOperation(opctx, &payload)
+	err = req.server.callbacks.OnOperation(opctx, &payload)
 	if err != nil {
 		return
 	}
@@ -237,8 +260,8 @@ func (server *serverImpl) serveWebsocketOperation(
 
 	if subscription {
 		cres = graphql.ExecuteSubscription(graphql.ExecuteParams{
-			Schema:        server.schema,
-			Root:          server.rootObject,
+			Schema:        req.server.schema,
+			Root:          req.server.rootObject,
 			AST:           astdoc,
 			OperationName: payload.OperationName,
 			Args:          payload.Variables,
@@ -246,16 +269,14 @@ func (server *serverImpl) serveWebsocketOperation(
 		})
 	} else {
 		cres = make(chan *graphql.Result, 1)
-
 		cres <- graphql.Execute(graphql.ExecuteParams{
-			Schema:        server.schema,
-			Root:          server.rootObject,
+			Schema:        req.server.schema,
+			Root:          req.server.rootObject,
 			AST:           astdoc,
 			OperationName: payload.OperationName,
 			Args:          payload.Variables,
 			Context:       params.Context,
 		})
-
 		close(cres)
 	}
 
@@ -274,23 +295,16 @@ func (server *serverImpl) serveWebsocketOperation(
 				return
 			}
 
-			t := apollows.OperationData
-			if result.HasErrors() {
-				t = apollows.OperationError
-			}
-
-			err = server.callbacks.OnOperationResult(opctx, &payload, result)
+			err = req.server.callbacks.OnOperationResult(opctx, &payload, result)
 			if err != nil {
 				return
 			}
 
-			outgoing <- &apollows.Message{
-				ID:   msg.ID,
-				Type: t,
-				Payload: apollows.Data{
-					Value: result,
-				},
-			}
+			req.writeWebsocketData(msg.ID, result)
+		}
+
+		if result.HasErrors() {
+			return
 		}
 	}
 }
