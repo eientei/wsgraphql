@@ -18,5 +18,5 @@ jobs:
         CC_TEST_REPORTER_ID: ${{secrets.CC_TEST_REPORTER_ID}}
       with:
         coverageCommand: go test -race -coverprofile c.out -covermode=atomic -v -bench=. ./...
-        prefix: ${{ github.event.repository.name }}
+        prefix: github.com/eientei/wsgraphql
         coverageLocations: ${{github.workspace}}/c.out:gocov
