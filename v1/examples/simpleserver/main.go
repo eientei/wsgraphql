@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"flag"
 	"fmt"
 	"net/http"
 	"sync/atomic"
@@ -19,6 +20,11 @@ import (
 var playgroundFile []byte
 
 func main() {
+	var addr string
+
+	flag.StringVar(&addr, "addr", ":8080", "Address to listen on")
+	flag.Parse()
+
 	var foo int
 
 	fooupdates := make(chan int, 1)
@@ -160,7 +166,7 @@ func main() {
 		http.ServeContent(writer, request, "playground.html", time.Time{}, bytes.NewReader(playgroundFile))
 	})
 
-	err = http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		panic(err)
 	}

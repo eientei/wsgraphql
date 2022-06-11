@@ -32,6 +32,14 @@ func (server *serverImpl) serveWebsocketRequest(
 		return
 	}
 
+	req := &websocketRequest{
+		ctx:        reqctx,
+		outgoing:   make(chan *apollows.Message),
+		operations: make(map[string]mutable.Context),
+		ws:         ws,
+		server:     server,
+	}
+
 	reqctx.Set(ContextKeyWebsocketConnection, ws)
 
 	var tickerch <-chan time.Time
@@ -46,19 +54,12 @@ func (server *serverImpl) serveWebsocketRequest(
 		tickerch = ticker.C
 	}
 
-	req := &websocketRequest{
-		ctx:        reqctx,
-		outgoing:   make(chan *apollows.Message),
-		operations: make(map[string]mutable.Context),
-		ws:         ws,
-		server:     server,
-	}
-
 	go req.readWebsocket()
 
+	// make sure req.outgoing is read towards closing in defer at exit of `websocketRequest.readWebsocket()`
+	// make sure req.readWebsocket() exits by closing a websocket on any error
 	for {
 		select {
-		case <-reqctx.Done():
 		case msg, ok := <-req.outgoing:
 			if !ok {
 				return
@@ -66,14 +67,14 @@ func (server *serverImpl) serveWebsocketRequest(
 
 			err = ws.WriteJSON(msg)
 			if err != nil {
-				return
+				_ = ws.Close()
 			}
 		case <-tickerch:
 			err = ws.WriteJSON(&apollows.Message{
 				Type: apollows.OperationKeepAlive,
 			})
 			if err != nil {
-				return
+				_ = ws.Close()
 			}
 		}
 	}
@@ -158,11 +159,11 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
 
 		opctx.Cancel()
 
-		req.wg.Done()
-
 		req.m.Lock()
 		delete(req.operations, msg.ID)
 		req.m.Unlock()
+
+		req.wg.Done()
 	}()
 }
 
@@ -193,8 +194,10 @@ func (req *websocketRequest) readWebsocket() {
 			req.writeWebsocketMessage("", apollows.OperationConnectionError, err.Error())
 		}
 
+		// cancel request context and consequently all pending operation contexts
 		req.ctx.Cancel()
 
+		// await for all operations to complete, so nothing will write to req.outgoing from this point
 		req.wg.Wait()
 
 		close(req.outgoing)

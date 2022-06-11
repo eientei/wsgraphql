@@ -245,6 +245,8 @@ func TestNewServerWebsocket(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "6", msg.ID)
 	assert.Equal(t, apollows.OperationComplete, msg.Type)
+
+	assert.NoError(t, conn.Close())
 }
 
 func TestNewServerWebsocketKeepalive(t *testing.T) {

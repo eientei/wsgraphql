@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 
 	"github.com/eientei/wsgraphql/v1"
@@ -10,6 +11,11 @@ import (
 )
 
 func main() {
+	var addr string
+
+	flag.StringVar(&addr, "addr", ":8080", "Address to listen on")
+	flag.Parse()
+
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
 			Name: "QueryRoot",
@@ -41,7 +47,7 @@ func main() {
 
 	http.Handle("/query", srv)
 
-	err = http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		panic(err)
 	}
