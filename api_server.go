@@ -18,17 +18,7 @@ type Server interface {
 	http.Handler
 }
 
-// NewServer returns new Server instance
-func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options ...ServerOption) (Server, error) {
-	var c serverConfig
-
-	for _, o := range options {
-		err := o(&c)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func initCallbacks(c *serverConfig) {
 	if c.callbacks.OnRequest == nil {
 		c.callbacks.OnRequest = func(ctx mutable.Context, r *http.Request, w http.ResponseWriter) error {
 			return nil
@@ -68,6 +58,20 @@ func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options
 			return err
 		}
 	}
+}
+
+// NewServer returns new Server instance
+func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options ...ServerOption) (Server, error) {
+	var c serverConfig
+
+	for _, o := range options {
+		err := o(&c)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	initCallbacks(&c)
 
 	f := reflect.ValueOf(&schema).Elem().FieldByName("extensions")
 
