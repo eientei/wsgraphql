@@ -68,3 +68,22 @@ func TestDataReadPayloadData(t *testing.T) {
 
 	assert.Equal(t, "123", pd.Data["foo"])
 }
+
+func TestDataReadPayloadDataError(t *testing.T) {
+	var ndata *Data
+
+	pd, err := ndata.ReadPayloadData()
+
+	assert.Error(t, err)
+	assert.Nil(t, pd)
+
+	ndata = &Data{
+		Value:      nil,
+		RawMessage: json.RawMessage(`foo`),
+	}
+
+	pd, err = ndata.ReadPayloadData()
+
+	assert.Error(t, err)
+	assert.Nil(t, pd)
+}

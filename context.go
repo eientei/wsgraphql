@@ -50,10 +50,6 @@ func defaultMutcontext(ctx context.Context, mutctx mutable.Context) mutable.Cont
 		return mutctx
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	return mutable.NewMutableContext(ctx)
 }
 

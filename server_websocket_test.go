@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/eientei/wsgraphql/apollows"
 	"github.com/gorilla/websocket"
@@ -244,4 +245,43 @@ func TestNewServerWebsocket(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "6", msg.ID)
 	assert.Equal(t, apollows.OperationComplete, msg.Type)
+}
+
+func TestNewServerWebsocketKeepalive(t *testing.T) {
+	srv := testNewServer(t, WithKeepalive(time.Millisecond*10))
+
+	defer srv.Close()
+
+	u := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
+		"sec-websocket-protocol": []string{WebsocketSubprotocol},
+	})
+
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = conn.Close()
+		_ = resp.Body.Close()
+	}()
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:      "",
+		Type:    apollows.OperationConnectionInit,
+		Payload: apollows.Data{},
+	})
+
+	assert.NoError(t, err)
+
+	var msg apollows.Message
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationConnectionAck, msg.Type)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationKeepAlive, msg.Type)
 }

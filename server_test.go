@@ -19,7 +19,7 @@ func (g testWrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHea
 	return g.Upgrader.Upgrade(w, r, responseHeader)
 }
 
-func testNewServer(t *testing.T) *httptest.Server {
+func testNewSchema(t *testing.T) graphql.Schema {
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
 			Name:       "QueryRoot",
@@ -91,7 +91,11 @@ func testNewServer(t *testing.T) *httptest.Server {
 	assert.NoError(t, err)
 	assert.NotNil(t, schema)
 
-	server, err := NewServer(schema, nil, WithUpgrader(testWrapper{
+	return schema
+}
+
+func testNewServer(t *testing.T, opts ...ServerOption) *httptest.Server {
+	opts = append(opts, WithUpgrader(testWrapper{
 		Upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -101,6 +105,8 @@ func testNewServer(t *testing.T) *httptest.Server {
 			},
 		},
 	}))
+
+	server, err := NewServer(testNewSchema(t), nil, opts...)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, server)

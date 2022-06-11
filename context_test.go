@@ -37,7 +37,7 @@ func TestOperationContext(t *testing.T) {
 
 	mutctx := mutable.NewMutableContext(context.Background())
 
-	r := RequestContext(mutctx)
+	r := OperationContext(mutctx)
 
 	assert.NotNil(t, r)
 	assert.NotEqual(t, reqctx, r)
@@ -48,14 +48,16 @@ func TestOperationContext(t *testing.T) {
 
 	mutctx.Set(ContextKeyOperationContext, 123)
 
-	r = RequestContext(mutctx)
+	r = OperationContext(mutctx)
 
 	assert.NotNil(t, r)
 	assert.NotEqual(t, reqctx, r)
 }
 
 func TestContextHTTPResponseWriter(t *testing.T) {
-	var h http.ResponseWriter
+	var h struct {
+		http.ResponseWriter
+	}
 
 	mutctx := mutable.NewMutableContext(context.Background())
 
@@ -117,7 +119,9 @@ func TestContextAST(t *testing.T) {
 }
 
 func TestContextWebsocketConnection(t *testing.T) {
-	var conn Conn
+	var conn struct {
+		Conn
+	}
 
 	mutctx := mutable.NewMutableContext(context.Background())
 
