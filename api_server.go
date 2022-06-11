@@ -109,7 +109,7 @@ type Callbacks struct {
 	// operation before returning the result with error
 	OnOperationResult func(opctx mutable.Context, payload *apollows.PayloadOperation, result *graphql.Result) error
 
-	// OnOperationDone is called once operation is finished, with error occured during the execution (if any)
+	// OnOperationDone is called once operation is finished, with error occurred during the execution (if any)
 	// error returned from this handler will close the websocket / terminate HTTP request with error response.
 	// By default, will pass through any error occurred
 	OnOperationDone func(opctx mutable.Context, payload *apollows.PayloadOperation, err error) error

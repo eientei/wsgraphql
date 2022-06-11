@@ -1,4 +1,4 @@
-// Package gorillaws provides compatability for gorilla websocket upgrader
+// Package gorillaws provides compatibility for gorilla websocket upgrader
 package gorillaws
 
 import (
