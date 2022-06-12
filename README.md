@@ -45,9 +45,9 @@ if err != nil {
 
 srv, err := wsgraphql.NewServer(
 	schema,
-	nil,
+	wsgraphql.WithProtocol(wsgraphql.WebsocketSubprotocolGraphqlWS),
 	wsgraphql.WithUpgrader(gorillaws.Wrap(&websocket.Upgrader{
-		Subprotocols: []string{wsgraphql.WebsocketSubprotocol},
+		Subprotocols: []string{string(wsgraphql.WebsocketSubprotocolGraphqlWS)},
 	})),
 )
 if err != nil {
