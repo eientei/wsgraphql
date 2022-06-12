@@ -41,7 +41,7 @@ func (server *serverImpl) serveWebsocketRequest(
 
 	req := &websocketRequest{
 		ctx:        reqctx,
-		outgoing:   make(chan outgoingMessage),
+		outgoing:   make(chan outgoingMessage, 1),
 		operations: make(map[string]mutable.Context),
 		ws:         ws,
 		server:     server,
@@ -73,6 +73,8 @@ func (server *serverImpl) serveWebsocketRequest(
 
 	go req.readWebsocket()
 
+	// req.outgoing is read to completion to avoid any potential blocking
+	// readWebsocket exit is ensured by closing a websocket on any error, this causes req.ws.ReadJSON() to return
 	for {
 		select {
 		case msg, ok := <-req.outgoing:
@@ -83,22 +85,17 @@ func (server *serverImpl) serveWebsocketRequest(
 			switch {
 			case msg.Message != nil:
 				err = ws.WriteJSON(msg.Message)
-				if err != nil {
-					_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
-				}
 			case msg.Error != nil:
 				err = ws.Close(int(msg.Error.EventMessageType()), msg.Error.Error())
-				if err != nil {
-					_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
-				}
 			}
 		case <-tickerch:
 			err = ws.WriteJSON(&apollows.Message{
 				Type: tickerType,
 			})
-			if err != nil {
-				_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
-			}
+		}
+
+		if err != nil {
+			_ = ws.Close(int(apollows.EventCloseError), err.Error())
 		}
 	}
 }
