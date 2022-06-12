@@ -38,6 +38,8 @@ func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	defer func() {
+		err = server.callbacks.OnDisconnect(reqctx, err)
+
 		server.callbacks.OnRequestDone(reqctx, r, w, err)
 
 		reqctx.Cancel()

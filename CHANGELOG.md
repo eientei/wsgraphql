@@ -1,3 +1,7 @@
+v1.2.3
+------
+- Added OnDisconnect handler without respnsibility to handle error, callback sequence diagram
+
 v1.2.2
 ------
 - Correct termination request handling

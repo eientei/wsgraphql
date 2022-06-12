@@ -37,6 +37,12 @@ func initCallbacks(c *serverConfig) {
 		}
 	}
 
+	if c.callbacks.OnDisconnect == nil {
+		c.callbacks.OnDisconnect = func(reqctx mutable.Context, err error) error {
+			return err
+		}
+	}
+
 	if c.callbacks.OnOperation == nil {
 		c.callbacks.OnOperation = func(ctx mutable.Context, payload *apollows.PayloadOperation) error {
 			return nil
@@ -91,6 +97,10 @@ func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options
 // Callbacks supported by the server
 // use wsgraphql.ContextHTTPRequest / wsgraphql.ContextHTTPResponseWriter to access underlying
 // http.Request and http.ResponseWriter
+//
+//  Sequence:
+//  OnRequest -> OnConnect -> [ OnOperation -> OnOperationResult -> OnOperationDone ]* -> OnDisconnect -> OnRequestDone
+//                            [     may be repeared for subscriptions or be none    ]
 type Callbacks struct {
 	// OnRequest called once HTTP request is received, before attempting to do websocket upgrade or plain request
 	// execution, consequently before OnConnect as well.
@@ -99,11 +109,14 @@ type Callbacks struct {
 	// OnRequestDone called once HTTP request is finished, regardless of request type, with error occurred during
 	// request execution (if any).
 	// By default, if error is present, will write error text and return 400 code.
-	OnRequestDone func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter, err error)
+	OnRequestDone func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter, origerr error)
 
 	// OnConnect is called once per HTTP request, after websocket upgrade and init message received in case of
 	// websocket request, or before execution in case of plain request
 	OnConnect func(reqctx mutable.Context, init apollows.PayloadInit) error
+
+	// OnDisconnect is called once per HTTP request, before OnRequestDone, without responsibility to handle errors
+	OnDisconnect func(reqctx mutable.Context, origerr error) error
 
 	// OnOperation is called before each operation with original payload, allowing to modify it or terminate
 	// the operation by returning an error
@@ -116,7 +129,7 @@ type Callbacks struct {
 	// OnOperationDone is called once operation is finished, with error occurred during the execution (if any)
 	// error returned from this handler will close the websocket / terminate HTTP request with error response.
 	// By default, will pass through any error occurred
-	OnOperationDone func(opctx mutable.Context, payload *apollows.PayloadOperation, err error) error
+	OnOperationDone func(opctx mutable.Context, payload *apollows.PayloadOperation, origerr error) error
 }
 
 // ServerOption to configure Server
