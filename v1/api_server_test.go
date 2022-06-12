@@ -48,6 +48,16 @@ func TestWithoutHTTPQueries(t *testing.T) {
 	assert.Equal(t, true, c.rejectHTTPQueries)
 }
 
+func TestWithRootObject(t *testing.T) {
+	var c serverConfig
+
+	obj := make(map[string]interface{})
+
+	assert.NoError(t, WithRootObject(obj)(&c))
+
+	assert.Equal(t, obj, c.rootObject)
+}
+
 func TestWriteError(t *testing.T) {
 	mutctx := mutable.NewMutableContext(context.Background())
 
@@ -65,14 +75,10 @@ func TestWriteError(t *testing.T) {
 	assert.NoError(t, resp.Body.Close())
 }
 
-func TestWriteErrorWebscoket(t *testing.T) {
+func TestWriteErrorResponseStarted(t *testing.T) {
 	mutctx := mutable.NewMutableContext(context.Background())
 
-	var conn struct {
-		Conn
-	}
-
-	mutctx.Set(ContextKeyWebsocketConnection, conn)
+	mutctx.Set(ContextKeyHTTPResponseStarted, true)
 
 	rec := httptest.NewRecorder()
 
@@ -89,7 +95,7 @@ func TestWriteErrorWebscoket(t *testing.T) {
 }
 
 func TestOptError(t *testing.T) {
-	srv, err := NewServer(testNewSchema(t), nil, func(config *serverConfig) error {
+	srv, err := NewServer(testNewSchema(t), func(config *serverConfig) error {
 		return errors.New("123")
 	})
 

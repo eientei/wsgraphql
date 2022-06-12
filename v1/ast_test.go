@@ -32,7 +32,7 @@ func TestASTParse(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, schema)
 
-	server, err := NewServer(schema, nil)
+	server, err := NewServer(schema)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
@@ -88,7 +88,7 @@ func TestASTParseSubscription(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, schema)
 
-	server, err := NewServer(schema, nil)
+	server, err := NewServer(schema)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, server)
@@ -224,7 +224,7 @@ func testAstParseExtensions(
 	assert.NoError(t, err)
 	assert.NotNil(t, schema)
 
-	server, err := NewServer(schema, nil)
+	server, err := NewServer(schema)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, server)

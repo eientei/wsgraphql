@@ -1,5 +1,6 @@
-// Package apollows provides implementation of GraphQL over WebSocket Protocol as defined by apollo graphql
-// see https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md for reference
+// Package apollows provides implementation of GraphQL over WebSocket Protocol as defined by
+// https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md  [GWS]
+// https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md [GTWS]
 package apollows
 
 import (
@@ -7,49 +8,178 @@ import (
 	"io"
 )
 
-// WebsocketSubprotocol defines websocket subprotocol expected by v1.apollows implementations
-const WebsocketSubprotocol = "graphql-ws"
+// Protocol websocket subprotocol defining server behavior
+type Protocol string
+
+const (
+	// WebsocketSubprotocolGraphqlWS websocket subprotocol expected by subscriptions-transport-ws implementations
+	WebsocketSubprotocolGraphqlWS Protocol = "graphql-ws"
+
+	// WebsocketSubprotocolGraphqlTransportWS websocket subprotocol exepected by graphql-ws implementations
+	WebsocketSubprotocolGraphqlTransportWS Protocol = "graphql-transport-ws"
+)
 
 // Operation type is used to enumerate possible apollo message types
 type Operation string
 
 const (
-	// OperationConnectionInit is set by the connecting client to initialize the websocket state with connection params
-	// (if any)
+	// OperationConnectionInit [GWS,GTWS]
+	// is set by the connecting client to initialize the websocket state with connection params (if any)
 	OperationConnectionInit Operation = "connection_init"
 
-	// OperationStart client request initiates new operation
-	// each operation may have 1-N OperationData / OperationError responses before being OperationComplete by the server
-	// (potentially in response to OperationStop client request)
+	// OperationStart [GWS]
+	// client request initiates new operation, each operation may have 0-N OperationData responses before being
+	// terminated by either OperationComplete or OperationError
 	OperationStart Operation = "start"
 
-	// OperationStop client request to stop previously initiated operation with OperationStart
-	OperationStop Operation = "stop"
+	// OperationSubscribe [GTWS]
+	// client request initiates new operation, each operation may have 0-N OperationNext responses before being
+	// terminated by either OperationComplete or OperationError
+	OperationSubscribe Operation = "subscribe"
 
-	// OperationTerminate client request to gracefully close the connection
+	// OperationTerminate [GWS]
+	// client request to gracefully close the connection, equialent to closing the websocket
 	OperationTerminate Operation = "connection_terminate"
 
-	// OperationConnectionError server response to unsuccessful OperationConnectionInit attempt
+	// OperationConnectionError [GWS]
+	// server response to unsuccessful OperationConnectionInit attempt
 	OperationConnectionError Operation = "connection_error"
 
-	// OperationConnectionAck server response to successful OperationConnectionInit attempt
+	// OperationConnectionAck [GWS,GTWS]
+	// server response to successful OperationConnectionInit attempt
 	OperationConnectionAck Operation = "connection_ack"
 
-	// OperationData server response to previously initiated operation with OperationStart
-	// may be multiple within same operation, specifically for subscriptions
+	// OperationData [GWS]
+	// server response to previously initiated operation with OperationStart may be multiple within same operation,
+	// specifically for subscriptions
 	OperationData Operation = "data"
 
-	// OperationError server response to previously initiated operation with OperationStart
-	// may be multiple within same operation, specifically for subscriptions
+	// OperationNext [GTWS]
+	// server response to previously initiated operation with OperationSubscribe may be multiple within same operation,
+	// specifically for subscriptions
+	OperationNext Operation = "next"
+
+	// OperationError [GWS,GTWS]
+	// server response to previously initiated operation with OperationStart/OperationSubscribe
 	OperationError Operation = "error"
 
-	// OperationComplete server response to terminate previously initiated operation with OperationStart
-	// should be preceded by at least one OperationData or OperationError
+	// OperationStop [GWS]
+	// client request to stop previously initiated operation with OperationStart
+	OperationStop Operation = "stop"
+
+	// OperationComplete [GWS,GTWS]
+	// GWS: server response indicating previously initiated operation is complete
+	// GTWS: server response indicating previously initiated operation is complete
+	// GTWS: client request to stop previously initiated operation with OperationSubscribe
 	OperationComplete Operation = "complete"
 
-	// OperationKeepAlive server response sent periodically to maintain websocket connection open
+	// OperationKeepAlive [GWS]
+	// server response sent periodically to maintain websocket connection open
 	OperationKeepAlive Operation = "ka"
+
+	// OperationPing [GTWS]
+	// sever/client request for OperationPong response
+	OperationPing Operation = "ping"
+
+	// OperationPong [GTWS]
+	// sever/client response for OperationPing request
+	// can be sent at any time (without prior OperationPing) to maintain wesocket connection
+	OperationPong Operation = "pong"
 )
+
+// Error providing MessageType to close websocket with
+type Error interface {
+	error
+	EventMessageType() MessageType
+}
+
+type errorImpl struct {
+	error
+	message     string
+	messageType MessageType
+}
+
+func (e errorImpl) EventMessageType() MessageType {
+	return e.messageType
+}
+
+func (e errorImpl) Unwrap() error {
+	return e.error
+}
+
+func (e errorImpl) Error() string {
+	return e.message
+}
+
+// WrapError wraps provided error into Error
+func WrapError(err error, messageType MessageType) Error {
+	message := err.Error()
+
+	if messageType.Error() != "" {
+		message = messageType.Error() + ": " + message
+	}
+
+	return errorImpl{
+		error:       err,
+		message:     message,
+		messageType: messageType,
+	}
+}
+
+// NewSubscriberAlreadyExistsError constructs new Error using subscriber id as part of the message
+func NewSubscriberAlreadyExistsError(id string) Error {
+	return errorImpl{
+		error:       nil,
+		message:     "Subscriber for " + id + " already exists",
+		messageType: EventSubscriberAlreadyExists,
+	}
+}
+
+// MessageType websocket message types / status codes used to indicate protocol-level events following closing the
+// websocket
+type MessageType int
+
+const (
+	// EventCloseNormal standard websocket message type
+	EventCloseNormal MessageType = 1000
+
+	// EventCloseError standard websocket message type
+	EventCloseError MessageType = 1006
+
+	// EventInvalidMessage indicates invalid protocol message
+	EventInvalidMessage MessageType = 4400
+
+	// EventUnauthorized indicated attempt to subscribe to an operation before receiving OperationConnectionAck
+	EventUnauthorized MessageType = 4401
+
+	// EventInitializationTimeout indicates timeout occurring before client sending OperationConnectionInit
+	EventInitializationTimeout MessageType = 4408
+
+	// EventTooManyInitializationRequests indicates receiving more than one OperationConnectionInit
+	EventTooManyInitializationRequests MessageType = 4429
+
+	// EventSubscriberAlreadyExists indicates subscribed operation ID already being in use
+	// (not yet terminated by either OperationComplete or OperationError)
+	EventSubscriberAlreadyExists MessageType = 4409
+)
+
+var messageTypeDescriptions = map[MessageType]string{
+	EventCloseNormal:                   "Termination requested",
+	EventInvalidMessage:                "Invalid message",
+	EventUnauthorized:                  "Unauthorized",
+	EventInitializationTimeout:         "Connection initialisation timeout",
+	EventTooManyInitializationRequests: "Too many initialisation requests",
+}
+
+// EventMessageType implementation
+func (m MessageType) EventMessageType() MessageType {
+	return m
+}
+
+// Error implementation
+func (m MessageType) Error() string {
+	return messageTypeDescriptions[m]
+}
 
 // Data encapsulates both client and server json payload, combining json.RawMessage for decoding and
 // arbitrary interface{} type for encoding
@@ -74,6 +204,40 @@ func (payload *Data) ReadPayloadData() (*PayloadDataResponse, error) {
 	payload.Value = pd
 
 	return &pd, nil
+}
+
+// ReadPayloadError client-side method to parse server error response
+func (payload *Data) ReadPayloadError() (*PayloadError, error) {
+	if payload == nil {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	var pd PayloadError
+
+	err := json.Unmarshal(payload.RawMessage, &pd)
+	if err != nil {
+		return nil, err
+	}
+
+	payload.Value = pd
+
+	return &pd, nil
+}
+
+// ReadPayloadErrors client-side method to parse server error response
+func (payload *Data) ReadPayloadErrors() (pds []*PayloadError, err error) {
+	if payload == nil {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	err = json.Unmarshal(payload.RawMessage, &pds)
+	if err != nil {
+		return nil, err
+	}
+
+	payload.Value = pds
+
+	return pds, nil
 }
 
 // UnmarshalJSON stores provided json as a RawMessage, as well as initializing Value to same RawMessage
@@ -130,7 +294,7 @@ type PayloadDataResponse struct {
 	Errors []PayloadError         `json:"errors,omitempty"`
 }
 
-// Message encapsulates every message within v1.apollows protocol in both directions
+// Message encapsulates every message within apollows protocol in both directions
 type Message struct {
 	ID      string    `json:"id,omitempty"`
 	Type    Operation `json:"type"`

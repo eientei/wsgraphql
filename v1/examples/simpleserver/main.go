@@ -149,12 +149,13 @@ func main() {
 
 	srv, err := wsgraphql.NewServer(
 		schema,
-		nil,
+		wsgraphql.WithProtocol(wsgraphql.WebsocketSubprotocolGraphqlWS),
 		wsgraphql.WithKeepalive(time.Second*30),
+		wsgraphql.WithConnectTimeout(time.Second*30),
 		wsgraphql.WithUpgrader(gorillaws.Wrap(&websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			Subprotocols:    []string{wsgraphql.WebsocketSubprotocol},
+			Subprotocols:    []string{string(wsgraphql.WebsocketSubprotocolGraphqlWS)},
 		})),
 	)
 	if err != nil {

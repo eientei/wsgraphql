@@ -3,6 +3,7 @@ package wsgraphql
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,12 +15,18 @@ import (
 
 type websocketRequest struct {
 	ctx        mutable.Context
-	outgoing   chan *apollows.Message
+	outgoing   chan outgoingMessage
 	operations map[string]mutable.Context
 	ws         Conn
 	server     *serverImpl
 	wg         sync.WaitGroup
 	m          sync.RWMutex
+	init       bool
+}
+
+type outgoingMessage struct {
+	*apollows.Message
+	apollows.Error
 }
 
 func (server *serverImpl) serveWebsocketRequest(
@@ -34,13 +41,23 @@ func (server *serverImpl) serveWebsocketRequest(
 
 	req := &websocketRequest{
 		ctx:        reqctx,
-		outgoing:   make(chan *apollows.Message),
+		outgoing:   make(chan outgoingMessage),
 		operations: make(map[string]mutable.Context),
 		ws:         ws,
 		server:     server,
 	}
 
 	reqctx.Set(ContextKeyWebsocketConnection, ws)
+	reqctx.Set(ContextKeyHTTPResponseStarted, true)
+
+	var tickerType apollows.Operation
+
+	switch server.subscriptionProtocol {
+	case apollows.WebsocketSubprotocolGraphqlWS:
+		tickerType = apollows.OperationKeepAlive
+	case apollows.WebsocketSubprotocolGraphqlTransportWS:
+		tickerType = apollows.OperationPong
+	}
 
 	var tickerch <-chan time.Time
 
@@ -56,8 +73,6 @@ func (server *serverImpl) serveWebsocketRequest(
 
 	go req.readWebsocket()
 
-	// make sure req.outgoing is read towards closing in defer at exit of `websocketRequest.readWebsocket()`
-	// make sure req.readWebsocket() exits by closing a websocket on any error
 	for {
 		select {
 		case msg, ok := <-req.outgoing:
@@ -65,43 +80,124 @@ func (server *serverImpl) serveWebsocketRequest(
 				return
 			}
 
-			err = ws.WriteJSON(msg)
-			if err != nil {
-				_ = ws.Close()
+			switch {
+			case msg.Message != nil:
+				err = ws.WriteJSON(msg.Message)
+				if err != nil {
+					_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
+				}
+			case msg.Error != nil:
+				err = ws.Close(int(msg.Error.EventMessageType()), msg.Error.Error())
+				if err != nil {
+					_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
+				}
 			}
 		case <-tickerch:
 			err = ws.WriteJSON(&apollows.Message{
-				Type: apollows.OperationKeepAlive,
+				Type: tickerType,
 			})
 			if err != nil {
-				_ = ws.Close()
+				_ = req.ws.Close(int(apollows.EventCloseError), err.Error())
 			}
 		}
 	}
 }
 
-func (req *websocketRequest) writeWebsocketData(id string, data *graphql.Result) {
-	t := apollows.OperationData
-	if data.HasErrors() {
-		t = apollows.OperationError
+func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
+	if len(errs) == 1 {
+		return errs[0]
 	}
 
-	req.outgoing <- &apollows.Message{
-		ID:   id,
-		Type: t,
-		Payload: apollows.Data{
-			Value: data,
-		},
+	errmsg := "preparing operation"
+
+	var errmsgs []string
+
+	for _, err := range errs {
+		errmsgs = append(errmsgs, err.Error())
 	}
+
+	if len(errmsgs) > 0 {
+		errmsg += ": " + strings.Join(errmsgs, "; ")
+	}
+
+	rooterr := gqlerrors.NewFormattedError(errmsg)
+
+	if len(errs) > 0 {
+		rooterr.Extensions["errors"] = errs
+	}
+
+	return rooterr
 }
 
-func (req *websocketRequest) writeWebsocketMessage(id string, t apollows.Operation, data interface{}) {
-	req.outgoing <- &apollows.Message{
-		ID:   id,
-		Type: t,
-		Payload: apollows.Data{
-			Value: data,
+func (req *websocketRequest) handleError(ctx mutable.Context, err error, execution bool) {
+	awerr, ok := err.(apollows.Error)
+	if ok {
+		if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS {
+			req.writeWebsocketMessage(
+				ctx,
+				apollows.OperationConnectionError,
+				gqlerrors.FormatError(awerr),
+			)
+		}
+
+		req.outgoing <- outgoingMessage{
+			Error: awerr,
+		}
+
+		return
+	}
+
+	res, ok := err.(resultError)
+
+	if ok {
+		switch {
+		case execution:
+			req.writeWebsocketData(ctx, res.Result)
+		case req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS:
+			req.writeWebsocketMessage(ctx, apollows.OperationError, combineErrors(res.Result.Errors))
+		default:
+			req.writeWebsocketMessage(ctx, apollows.OperationError, res.Result.Errors)
+		}
+
+		return
+	}
+
+	req.writeWebsocketMessage(ctx, apollows.OperationError, gqlerrors.FormatError(err))
+}
+
+func (req *websocketRequest) writeWebsocketData(ctx mutable.Context, data *graphql.Result) {
+	var t apollows.Operation
+
+	switch req.server.subscriptionProtocol {
+	case apollows.WebsocketSubprotocolGraphqlWS:
+		t = apollows.OperationData
+	case apollows.WebsocketSubprotocolGraphqlTransportWS:
+		t = apollows.OperationNext
+
+		if ContextOperationStopped(ctx) {
+			return
+		}
+	}
+
+	req.writeWebsocketMessage(ctx, t, data)
+}
+
+func (req *websocketRequest) writeWebsocketMessage(ctx mutable.Context, t apollows.Operation, data interface{}) {
+	if t == apollows.OperationError {
+		OperationContext(ctx).Set(ContextKeyOperationStopped, true)
+	}
+
+	select {
+	case req.outgoing <- outgoingMessage{
+		Message: &apollows.Message{
+			ID:   ContextOperationID(ctx),
+			Type: t,
+			Payload: apollows.Data{
+				Value: data,
+			},
 		},
+	}:
+	case <-RequestContext(ctx).Done():
 	}
 }
 
@@ -118,21 +214,28 @@ func (req *websocketRequest) readWebsocketInit(msg *apollows.Message) (err error
 		return
 	}
 
-	req.writeWebsocketMessage("", apollows.OperationConnectionAck, nil)
+	req.writeWebsocketMessage(req.ctx, apollows.OperationConnectionAck, nil)
 
 	return
 }
 
-func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
+func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err error) {
+	if !req.init && req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+		return apollows.EventUnauthorized
+	}
+
 	req.m.RLock()
-	prev, ok := req.operations[msg.ID]
+	_, ok := req.operations[msg.ID]
 	req.m.RUnlock()
 
 	if ok {
-		prev.Cancel()
+		return apollows.NewSubscriberAlreadyExistsError(msg.ID)
 	}
 
 	opctx := mutable.NewMutableContext(req.ctx)
+
+	opctx.Set(ContextKeyOperationContext, opctx)
+	opctx.Set(ContextKeyOperationID, msg.ID)
 
 	req.m.Lock()
 	req.operations[msg.ID] = opctx
@@ -141,21 +244,16 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
 	req.wg.Add(1)
 
 	go func() {
-		payload, err := req.serveWebsocketOperation(opctx, msg)
+		executed, operr := req.serveWebsocketOperation(opctx, msg)
 
-		err = req.server.callbacks.OnOperationDone(opctx, &payload, err)
-
-		if err != nil {
-			req.writeWebsocketData(msg.ID, &graphql.Result{
-				Errors: []gqlerrors.FormattedError{
-					{
-						Message: err.Error(),
-					},
-				},
-			})
+		if operr != nil {
+			req.handleError(opctx, operr, executed)
 		}
 
-		req.writeWebsocketMessage(msg.ID, apollows.OperationComplete, nil)
+		if !ContextOperationStopped(opctx) ||
+			req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS {
+			req.writeWebsocketMessage(opctx, apollows.OperationComplete, nil)
+		}
 
 		opctx.Cancel()
 
@@ -165,9 +263,15 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) {
 
 		req.wg.Done()
 	}()
+
+	return
 }
 
-func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) {
+func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) (err error) {
+	if !req.init && req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+		return apollows.EventUnauthorized
+	}
+
 	req.m.RLock()
 	prev, ok := req.operations[msg.ID]
 	req.m.RUnlock()
@@ -176,12 +280,22 @@ func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) {
 		prev.Set(ContextKeyOperationStopped, true)
 		prev.Cancel()
 	}
+
+	return
 }
 
-func (req *websocketRequest) readWebsocketTerminate() {
+func (req *websocketRequest) readWebsocketTerminate() (err error) {
+	if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+		return apollows.EventUnauthorized
+	}
+
 	req.ctx.Set(ContextKeyOperationStopped, true)
 
-	_ = req.ws.Close()
+	req.outgoing <- outgoingMessage{
+		Error: apollows.EventCloseNormal,
+	}
+
+	return
 }
 
 func (req *websocketRequest) readWebsocket() {
@@ -189,7 +303,7 @@ func (req *websocketRequest) readWebsocket() {
 
 	defer func() {
 		if err != nil {
-			req.writeWebsocketMessage("", apollows.OperationConnectionError, err.Error())
+			req.handleError(req.ctx, err, false)
 		}
 
 		// cancel request context and consequently all pending operation contexts
@@ -201,6 +315,20 @@ func (req *websocketRequest) readWebsocket() {
 		close(req.outgoing)
 	}()
 
+	var timer *time.Timer
+
+	if req.server.connectTimeout > 0 {
+		timer = time.NewTimer(req.server.connectTimeout)
+
+		go func() {
+			select {
+			case <-timer.C:
+				req.handleError(req.ctx, apollows.EventInitializationTimeout, false)
+			case <-req.ctx.Done():
+			}
+		}()
+	}
+
 	for {
 		var msg apollows.Message
 
@@ -211,13 +339,25 @@ func (req *websocketRequest) readWebsocket() {
 
 		switch msg.Type {
 		case apollows.OperationConnectionInit:
+			if req.init {
+				err = apollows.EventTooManyInitializationRequests
+
+				return
+			}
+
+			req.init = true
+
 			err = req.readWebsocketInit(&msg)
-		case apollows.OperationStart:
-			req.readWebsocketStart(&msg)
-		case apollows.OperationStop:
-			req.readWebsocketStop(&msg)
+
+			if timer != nil {
+				timer.Stop()
+			}
+		case apollows.OperationStart, apollows.OperationSubscribe:
+			err = req.readWebsocketStart(&msg)
+		case apollows.OperationStop, apollows.OperationComplete:
+			err = req.readWebsocketStop(&msg)
 		case apollows.OperationTerminate:
-			req.readWebsocketTerminate()
+			err = req.readWebsocketTerminate()
 		}
 
 		if err != nil {
@@ -229,31 +369,39 @@ func (req *websocketRequest) readWebsocket() {
 func (req *websocketRequest) serveWebsocketOperation(
 	opctx mutable.Context,
 	msg *apollows.Message,
-) (payload apollows.PayloadOperation, err error) {
+) (executed bool, err error) {
+	var payload apollows.PayloadOperation
+
 	err = json.Unmarshal(msg.Payload.RawMessage, &payload)
 	if err != nil {
+		if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+			err = apollows.WrapError(err, apollows.EventInvalidMessage)
+		}
+
 		return
 	}
 
-	err = req.server.callbacks.OnConnect(opctx, nil)
+	defer func() {
+		err = req.server.callbacks.OnOperationDone(opctx, &payload, err)
+	}()
+
+	err = req.server.callbacks.OnOperation(opctx, &payload)
 	if err != nil {
 		return
 	}
 
 	params, astdoc, subscription, result := req.server.parseAST(opctx, &payload)
-	if result != nil {
-		err = req.server.callbacks.OnOperation(opctx, &payload)
-		if err != nil {
-			return
-		}
 
-		req.writeWebsocketData(msg.ID, result)
-
+	err = req.server.callbacks.OnOperationValidation(opctx, &payload, result)
+	if err != nil {
 		return
 	}
 
-	err = req.server.callbacks.OnOperation(opctx, &payload)
-	if err != nil {
+	if result != nil {
+		err = resultError{
+			Result: result,
+		}
+
 		return
 	}
 
@@ -281,6 +429,8 @@ func (req *websocketRequest) serveWebsocketOperation(
 		close(cres)
 	}
 
+	executed = true
+
 	var ok bool
 
 	for {
@@ -301,7 +451,7 @@ func (req *websocketRequest) serveWebsocketOperation(
 				return
 			}
 
-			req.writeWebsocketData(msg.ID, result)
+			req.writeWebsocketData(opctx, result)
 		}
 
 		if result.HasErrors() {

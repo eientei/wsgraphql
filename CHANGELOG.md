@@ -1,3 +1,10 @@
+v1.3.0
+------
+- Breaking change: root object moved to functional options parametrization
+- Added support for graphql-ws (graphql-transport-ws subprotocol)
+- Ensured only pre-execution operation errors are returned as `error` type per apollows spec
+- Fixed incorrect OnConnect/OnOperation callback sequence
+
 v1.2.3
 ------
 - Added OnDisconnect handler without respnsibility to handle error, callback sequence diagram

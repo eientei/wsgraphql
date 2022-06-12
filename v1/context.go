@@ -11,12 +11,14 @@ import (
 type (
 	contextKeyRequestContextT      struct{}
 	contextKeyOperationContextT    struct{}
+	contextKeyOperationStoppedT    struct{}
+	contextKeyOperationIDT         struct{}
 	contextKeyAstT                 struct{}
 	contextKeySubscriptionT        struct{}
 	contextKeyHTTPRequestT         struct{}
 	contextKeyHTTPResponseWriterT  struct{}
+	contextKeyHTTPResponseStartedT struct{}
 	contextKeyWebsocketConnectionT struct{}
-	contextKeyOperationStoppedT    struct{}
 )
 
 var (
@@ -25,6 +27,12 @@ var (
 
 	// ContextKeyOperationContext used to store graphql operation-scoped mutable.Context
 	ContextKeyOperationContext = contextKeyOperationContextT{}
+
+	// ContextKeyOperationStopped indicates the operation was stopped on client request
+	ContextKeyOperationStopped = contextKeyOperationStoppedT{}
+
+	// ContextKeyOperationID indicates the operation ID
+	ContextKeyOperationID = contextKeyOperationIDT{}
 
 	// ContextKeyAST used to store operation's ast.Document (abstract syntax tree)
 	ContextKeyAST = contextKeyAstT{}
@@ -38,11 +46,11 @@ var (
 	// ContextKeyHTTPResponseWriter used to store HTTP response
 	ContextKeyHTTPResponseWriter = contextKeyHTTPResponseWriterT{}
 
+	// ContextKeyHTTPResponseStarted used to indicate HTTP response already has headers sent
+	ContextKeyHTTPResponseStarted = contextKeyHTTPResponseStartedT{}
+
 	// ContextKeyWebsocketConnection used to store websocket connection
 	ContextKeyWebsocketConnection = contextKeyWebsocketConnectionT{}
-
-	// ContextKeyOperationStopped indicates the operation was stopped on client request
-	ContextKeyOperationStopped = contextKeyOperationStoppedT{}
 )
 
 func defaultMutcontext(ctx context.Context, mutctx mutable.Context) mutable.Context {
@@ -89,6 +97,36 @@ func OperationContext(ctx context.Context) (mutctx mutable.Context) {
 	}
 
 	return mutctx
+}
+
+// ContextOperationStopped returns true if user requested operation stop
+func ContextOperationStopped(ctx context.Context) bool {
+	v := ctx.Value(ContextKeyOperationStopped)
+	if v == nil {
+		return false
+	}
+
+	res, ok := v.(bool)
+	if !ok {
+		return false
+	}
+
+	return res
+}
+
+// ContextOperationID returns operaion ID stored in the context
+func ContextOperationID(ctx context.Context) string {
+	v := ctx.Value(ContextKeyOperationID)
+	if v == nil {
+		return ""
+	}
+
+	res, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return res
 }
 
 // ContextAST returns operation's abstract syntax tree document
@@ -151,6 +189,21 @@ func ContextHTTPResponseWriter(ctx context.Context) http.ResponseWriter {
 	return req
 }
 
+// ContextHTTPResponseStarted returns true if HTTP response has already headers sent
+func ContextHTTPResponseStarted(ctx context.Context) bool {
+	v := ctx.Value(ContextKeyHTTPResponseStarted)
+	if v == nil {
+		return false
+	}
+
+	val, ok := v.(bool)
+	if !ok {
+		return false
+	}
+
+	return val
+}
+
 // ContextWebsocketConnection returns websocket connection stored in a context
 func ContextWebsocketConnection(ctx context.Context) Conn {
 	v := ctx.Value(ContextKeyWebsocketConnection)
@@ -164,19 +217,4 @@ func ContextWebsocketConnection(ctx context.Context) Conn {
 	}
 
 	return conn
-}
-
-// ContextOperationStopped returns true if user requested operation stop
-func ContextOperationStopped(ctx context.Context) bool {
-	v := ctx.Value(ContextKeyOperationStopped)
-	if v == nil {
-		return false
-	}
-
-	res, ok := v.(bool)
-	if !ok {
-		return false
-	}
-
-	return res
 }

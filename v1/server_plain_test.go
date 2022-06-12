@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewServerPlain(t *testing.T) {
-	srv := testNewServer(t)
+	srv := testNewServer(t, apollows.WebsocketSubprotocolGraphqlWS)
 
 	defer srv.Close()
 

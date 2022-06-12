@@ -71,6 +71,10 @@ func (server *serverImpl) handleExtensionsParseDidStart(
 	endfn = func(err error) *graphql.Result {
 		var inerrs gqlerrors.FormattedErrors
 
+		if err != nil {
+			inerrs = append(inerrs, gqlerrors.FormatError(err))
+		}
+
 		for name, fn := range fs {
 			func() {
 				defer func() {
@@ -187,9 +191,9 @@ func (server *serverImpl) parseAST(
 	}
 
 	astdoc, err := parser.Parse(parser.ParseParams{Source: src})
-	result = parseFinishFn(err)
 
-	if err != nil || result != nil {
+	result = parseFinishFn(err)
+	if result != nil {
 		return
 	}
 

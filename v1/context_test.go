@@ -72,6 +72,20 @@ func TestContextHTTPResponseWriter(t *testing.T) {
 	assert.Nil(t, ContextHTTPResponseWriter(mutctx))
 }
 
+func TestContextHTTPResponseStarted(t *testing.T) {
+	mutctx := mutable.NewMutableContext(context.Background())
+
+	assert.Equal(t, false, ContextHTTPResponseStarted(mutctx))
+
+	mutctx.Set(ContextKeyHTTPResponseStarted, true)
+
+	assert.Equal(t, true, ContextHTTPResponseStarted(mutctx))
+
+	mutctx.Set(ContextKeyHTTPResponseStarted, 123)
+
+	assert.Equal(t, false, ContextHTTPResponseStarted(mutctx))
+}
+
 func TestContextHTTPRequest(t *testing.T) {
 	h := &http.Request{}
 

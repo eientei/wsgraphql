@@ -13,9 +13,31 @@ type Wrapper struct {
 	*websocket.Upgrader
 }
 
+type conn struct {
+	*websocket.Conn
+}
+
+func (conn conn) Close(code int, message string) error {
+	origerr := conn.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
+
+	err := conn.Conn.Close()
+	if err == nil {
+		err = origerr
+	}
+
+	return err
+}
+
 // Upgrade implementation
 func (g Wrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHeader http.Header) (wsgraphql.Conn, error) {
-	return g.Upgrader.Upgrade(w, r, responseHeader)
+	c, err := g.Upgrader.Upgrade(w, r, responseHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn{
+		Conn: c,
+	}, nil
 }
 
 // Wrap gorilla upgrader into wsgraphql-compatible interface

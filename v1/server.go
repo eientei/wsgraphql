@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/eientei/wsgraphql/v1/apollows"
 	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
+	"github.com/graphql-go/graphql/gqlerrors"
 )
 
 var (
@@ -15,17 +17,19 @@ var (
 )
 
 type serverConfig struct {
-	upgrader          Upgrader
-	callbacks         Callbacks
-	rejectHTTPQueries bool
-	keepalive         time.Duration
+	upgrader             Upgrader
+	callbacks            Callbacks
+	rootObject           map[string]interface{}
+	subscriptionProtocol apollows.Protocol
+	keepalive            time.Duration
+	connectTimeout       time.Duration
+	rejectHTTPQueries    bool
 }
 
 type serverImpl struct {
-	rootObject map[string]interface{}
-	serverConfig
 	extensions []graphql.Extension
 	schema     graphql.Schema
+	serverConfig
 }
 
 func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +43,18 @@ func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		err = server.callbacks.OnDisconnect(reqctx, err)
+
+		if err != nil {
+			if _, ok := err.(resultError); !ok {
+				err = resultError{
+					Result: &graphql.Result{
+						Errors: []gqlerrors.FormattedError{
+							gqlerrors.FormatError(err),
+						},
+					},
+				}
+			}
+		}
 
 		server.callbacks.OnRequestDone(reqctx, r, w, err)
 
@@ -57,7 +73,4 @@ func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = server.serveWebsocketRequest(reqctx, w, r)
-	if err != nil {
-		return
-	}
 }

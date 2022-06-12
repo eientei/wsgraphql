@@ -3,10 +3,13 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/c626b5f2399b044bdebf/maintainability)](https://codeclimate.com/github/eientei/wsgraphql)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/c626b5f2399b044bdebf/test_coverage)](https://codeclimate.com/github/eientei/wsgraphql)
 
-An implementation of
-[apollo graphql](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)
-websocket protocol for
+An implementation of websocket transport for
 [graphql-go](https://github.com/graphql-go/graphql).
+
+Currently following flavors are supported:
+
+- `graphql-ws` subprotocol, older spec: https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md
+- `graphql-transport-ws` subprotocol, newer spec: https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
 
 Inspired by [graphqlws](https://github.com/functionalfoundry/graphqlws)
 
@@ -63,5 +66,6 @@ Examples
 --------
 
 See [/v1/examples](/v1/examples)
-- [minimal](/v1/examples/minimal) server setup
+- [minimal-graphql-ws](/v1/examples/minimal-graphql-ws) `graphql-ws` / older subscriptions-transport-ws server setup
+- [minimal-graphql-transport-ws](/v1/examples/minimal-graphql-transport-ws) `graphql-transport-ws` / newer graphql-ws server setup
 - [simpleserver](/v1/examples/simpleserver) complete example with subscriptions, mutations and queries

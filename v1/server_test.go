@@ -1,10 +1,12 @@
 package wsgraphql
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/eientei/wsgraphql/v1/apollows"
 	"github.com/gorilla/websocket"
 	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +16,31 @@ type testWrapper struct {
 	*websocket.Upgrader
 }
 
+type testConn struct {
+	*websocket.Conn
+}
+
+func (conn testConn) Close(code int, message string) error {
+	origerr := conn.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
+
+	err := conn.Conn.Close()
+	if err == nil {
+		err = origerr
+	}
+
+	return err
+}
+
 // Upgrade implementation
 func (g testWrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHeader http.Header) (Conn, error) {
-	return g.Upgrader.Upgrade(w, r, responseHeader)
+	c, err := g.Upgrader.Upgrade(w, r, responseHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	return testConn{
+		Conn: c,
+	}, nil
 }
 
 func testNewSchema(t *testing.T) graphql.Schema {
@@ -29,6 +53,12 @@ func testNewSchema(t *testing.T) graphql.Schema {
 					Type: graphql.Int,
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
+					},
+				},
+				"getError": &graphql.Field{
+					Type: graphql.Int,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return nil, errors.New("someerr")
 					},
 				},
 			},
@@ -94,19 +124,21 @@ func testNewSchema(t *testing.T) graphql.Schema {
 	return schema
 }
 
-func testNewServer(t *testing.T, opts ...ServerOption) *httptest.Server {
+func testNewServer(t *testing.T, protocol apollows.Protocol, opts ...ServerOption) *httptest.Server {
 	opts = append(opts, WithUpgrader(testWrapper{
 		Upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			Subprotocols:    []string{WebsocketSubprotocol},
+			Subprotocols:    []string{string(protocol)},
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
 		},
 	}))
 
-	server, err := NewServer(testNewSchema(t), nil, opts...)
+	opts = append(opts, WithProtocol(protocol))
+
+	server, err := NewServer(testNewSchema(t), opts...)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, server)

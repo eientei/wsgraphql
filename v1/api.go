@@ -5,5 +5,8 @@ import (
 	"github.com/eientei/wsgraphql/v1/apollows"
 )
 
-// WebsocketSubprotocol defines websocket subprotocol expected by this implementation by default
-const WebsocketSubprotocol = apollows.WebsocketSubprotocol
+// WebsocketSubprotocolGraphqlWS websocket subprotocol expected by subscriptions-transport-ws implementations
+const WebsocketSubprotocolGraphqlWS = apollows.WebsocketSubprotocolGraphqlWS
+
+// WebsocketSubprotocolGraphqlTransportWS websocket subprotocol expected by graphql-ws implementations
+const WebsocketSubprotocolGraphqlTransportWS = apollows.WebsocketSubprotocolGraphqlTransportWS

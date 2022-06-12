@@ -49,6 +49,16 @@ func initCallbacks(c *serverConfig) {
 		}
 	}
 
+	if c.callbacks.OnOperationValidation == nil {
+		c.callbacks.OnOperationValidation = func(
+			ctx mutable.Context,
+			payload *apollows.PayloadOperation,
+			result *graphql.Result,
+		) error {
+			return nil
+		}
+	}
+
 	if c.callbacks.OnOperationResult == nil {
 		c.callbacks.OnOperationResult = func(
 			ctx mutable.Context,
@@ -67,8 +77,13 @@ func initCallbacks(c *serverConfig) {
 }
 
 // NewServer returns new Server instance
-func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options ...ServerOption) (Server, error) {
+func NewServer(
+	schema graphql.Schema,
+	options ...ServerOption,
+) (Server, error) {
 	var c serverConfig
+
+	c.subscriptionProtocol = apollows.WebsocketSubprotocolGraphqlWS
 
 	for _, o := range options {
 		err := o(&c)
@@ -89,7 +104,6 @@ func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options
 	return &serverImpl{
 		schema:       schema,
 		extensions:   exts,
-		rootObject:   rootObject,
 		serverConfig: c,
 	}, nil
 }
@@ -97,10 +111,10 @@ func NewServer(schema graphql.Schema, rootObject map[string]interface{}, options
 // Callbacks supported by the server
 // use wsgraphql.ContextHTTPRequest / wsgraphql.ContextHTTPResponseWriter to access underlying
 // http.Request and http.ResponseWriter
-//
-//  Sequence:
-//  OnRequest -> OnConnect -> [ OnOperation -> OnOperationResult -> OnOperationDone ]* -> OnDisconnect -> OnRequestDone
-//                            [     may be repeared for subscriptions or be none    ]
+// Sequence:
+// OnRequest -> OnConnect ->
+// [ OnOperation -> OnOperationValidation -> OnOperationResult -> OnOperationDone ]* ->
+// OnDisconnect -> OnRequestDone
 type Callbacks struct {
 	// OnRequest called once HTTP request is received, before attempting to do websocket upgrade or plain request
 	// execution, consequently before OnConnect as well.
@@ -119,16 +133,21 @@ type Callbacks struct {
 	OnDisconnect func(reqctx mutable.Context, origerr error) error
 
 	// OnOperation is called before each operation with original payload, allowing to modify it or terminate
-	// the operation by returning an error
+	// the operation by returning an error.
 	OnOperation func(opctx mutable.Context, payload *apollows.PayloadOperation) error
 
+	// OnOperationValidation is called after parsing an operation payload with any immediate validation result, if
+	// available. AST will be available in context with ContextAST if parsing succeeded.
+	OnOperationValidation func(opctx mutable.Context, payload *apollows.PayloadOperation, result *graphql.Result) error
+
 	// OnOperationResult is called after operation result is received, allowing to postprocess it or terminate the
-	// operation before returning the result with error
+	// operation before returning the result with error. AST is available in context with ContextAST.
 	OnOperationResult func(opctx mutable.Context, payload *apollows.PayloadOperation, result *graphql.Result) error
 
 	// OnOperationDone is called once operation is finished, with error occurred during the execution (if any)
 	// error returned from this handler will close the websocket / terminate HTTP request with error response.
-	// By default, will pass through any error occurred
+	// By default, will pass through any error occurred. AST will be available in context with ContextAST if can be
+	// parsed.
 	OnOperationDone func(opctx mutable.Context, payload *apollows.PayloadOperation, origerr error) error
 }
 
@@ -171,9 +190,37 @@ func WithoutHTTPQueries() ServerOption {
 	}
 }
 
+// WithProtocol option sets protocol for this sever to use
+func WithProtocol(protocol apollows.Protocol) ServerOption {
+	return func(config *serverConfig) error {
+		config.subscriptionProtocol = protocol
+
+		return nil
+	}
+}
+
+// WithConnectTimeout option sets duration within which client is allowed to initialize the connection before being
+// disconnected
+func WithConnectTimeout(timeout time.Duration) ServerOption {
+	return func(config *serverConfig) error {
+		config.connectTimeout = timeout
+
+		return nil
+	}
+}
+
+// WithRootObject provides root object that will be used in root resolvers
+func WithRootObject(rootObject map[string]interface{}) ServerOption {
+	return func(config *serverConfig) error {
+		config.rootObject = rootObject
+
+		return nil
+	}
+}
+
 // WriteError helper function writing an error to http.ResponseWriter
 func WriteError(ctx context.Context, w http.ResponseWriter, err error) {
-	if err == nil || ContextWebsocketConnection(ctx) != nil {
+	if err == nil || ContextHTTPResponseStarted(ctx) {
 		return
 	}
 

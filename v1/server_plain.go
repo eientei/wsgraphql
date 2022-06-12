@@ -3,11 +3,22 @@ package wsgraphql
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/eientei/wsgraphql/v1/apollows"
 	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
 )
+
+type resultError struct {
+	*graphql.Result
+}
+
+func (r resultError) Error() string {
+	bs, _ := json.Marshal(r.Result)
+
+	return string(bs)
+}
 
 func (server *serverImpl) servePlainRequest(
 	reqctx mutable.Context,
@@ -18,41 +29,40 @@ func (server *serverImpl) servePlainRequest(
 		return errHTTPQueryRejected
 	}
 
-	var payload apollows.PayloadOperation
-
-	opctx := mutable.NewMutableContext(reqctx)
-
-	defer func() {
-		err = server.callbacks.OnOperationDone(opctx, &payload, err)
-
-		opctx.Cancel()
-	}()
-
 	err = server.callbacks.OnConnect(reqctx, nil)
 	if err != nil {
 		return
 	}
+
+	var payload apollows.PayloadOperation
+
+	opctx := mutable.NewMutableContext(reqctx)
+
+	defer opctx.Cancel()
 
 	err = json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		return
 	}
 
-	params, astdoc, subscription, result := server.parseAST(opctx, &payload)
-	if result != nil {
-		err = server.callbacks.OnOperation(opctx, &payload)
-		if err != nil {
-			return
-		}
-
-		err = json.NewEncoder(w).Encode(result)
-
-		return
-	}
+	defer func() {
+		err = server.callbacks.OnOperationDone(opctx, &payload, err)
+	}()
 
 	err = server.callbacks.OnOperation(opctx, &payload)
 	if err != nil {
-		return
+		return err
+	}
+
+	params, astdoc, subscription, result := server.parseAST(opctx, &payload)
+
+	err = server.callbacks.OnOperationValidation(opctx, &payload, result)
+	if err != nil {
+		return err
+	}
+
+	if result != nil {
+		return resultError{Result: result}
 	}
 
 	w.Header().Set("content-type", "application/json")
@@ -104,7 +114,7 @@ func (server *serverImpl) servePlainRequest(
 				return err
 			}
 
-			err = server.writePlainResult(result, w, flusher)
+			err = server.writePlainResult(reqctx, result, w, flusher)
 			if err != nil {
 				return
 			}
@@ -113,6 +123,7 @@ func (server *serverImpl) servePlainRequest(
 }
 
 func (server *serverImpl) writePlainResult(
+	reqctx mutable.Context,
 	result *graphql.Result,
 	w http.ResponseWriter,
 	flusher http.Flusher,
@@ -121,12 +132,18 @@ func (server *serverImpl) writePlainResult(
 		return nil
 	}
 
-	err = json.NewEncoder(w).Encode(result)
+	bs, err := json.Marshal(result)
 	if err != nil {
 		return
 	}
 
-	_, err = w.Write([]byte{'\n'})
+	bs = append(bs, '\n')
+
+	if !ContextHTTPResponseStarted(reqctx) && flusher == nil {
+		w.Header().Set("content-length", strconv.Itoa(len(bs)))
+	}
+
+	_, err = w.Write(bs)
 	if err != nil {
 		return
 	}
@@ -134,6 +151,8 @@ func (server *serverImpl) writePlainResult(
 	if flusher != nil {
 		flusher.Flush()
 	}
+
+	reqctx.Set(ContextKeyHTTPResponseStarted, true)
 
 	return nil
 }
