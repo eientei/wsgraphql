@@ -1,6 +1,7 @@
 package wsgraphql
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -1134,4 +1135,61 @@ func TestNewServerWebsocketOperationErrorGTWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "1", msg.ID)
 	assert.Equal(t, apollows.OperationComplete, msg.Type)
+}
+
+func TestNewServerWebsocketPingGTWS(t *testing.T) {
+	srv := testNewServer(t, apollows.WebsocketSubprotocolGraphqlTransportWS, WithConnectTimeout(time.Second))
+
+	defer srv.Close()
+
+	u := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
+		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+	})
+
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = conn.Close()
+		_ = resp.Body.Close()
+	}()
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:      "",
+		Type:    apollows.OperationConnectionInit,
+		Payload: apollows.Data{},
+	})
+
+	assert.NoError(t, err)
+
+	var msg apollows.Message
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationConnectionAck, msg.Type)
+
+	err = conn.WriteJSON(apollows.Message{
+		Type: apollows.OperationPing,
+		Payload: apollows.Data{
+			Value: map[string]interface{}{
+				"foo": 123,
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationPong, msg.Type)
+
+	var m map[string]interface{}
+
+	err = json.Unmarshal(msg.Payload.RawMessage, &m)
+
+	assert.NoError(t, err)
+	assert.EqualValues(t, 123, m["foo"])
 }

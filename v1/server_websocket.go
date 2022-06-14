@@ -295,6 +295,10 @@ func (req *websocketRequest) readWebsocketTerminate() (err error) {
 	return
 }
 
+func (req *websocketRequest) readWebsocketPing(msg *apollows.Message) {
+	req.writeWebsocketMessage(req.ctx, apollows.OperationPong, msg.Payload.Value)
+}
+
 func (req *websocketRequest) readWebsocket() {
 	var err error
 
@@ -355,6 +359,8 @@ func (req *websocketRequest) readWebsocket() {
 			err = req.readWebsocketStop(&msg)
 		case apollows.OperationTerminate:
 			err = req.readWebsocketTerminate()
+		case apollows.OperationPing:
+			req.readWebsocketPing(&msg)
 		}
 
 		if err != nil {
