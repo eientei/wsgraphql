@@ -2,13 +2,16 @@ package wsgraphql
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/eientei/wsgraphql/v1/apollows"
 	"github.com/gorilla/websocket"
+	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1192,4 +1195,112 @@ func TestNewServerWebsocketPingGTWS(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.EqualValues(t, 123, m["foo"])
+}
+
+func TestNewServerWebsocketCombineErrorsGWS(t *testing.T) {
+	ex1 := &testExt{}
+	ex2 := &testExt{}
+
+	var opts []ServerOption
+
+	opts = append(opts, WithUpgrader(testWrapper{
+		Upgrader: &websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			Subprotocols:    []string{string(apollows.WebsocketSubprotocolGraphqlWS)},
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}), WithConnectTimeout(time.Second))
+
+	opts = append(opts, WithProtocol(apollows.WebsocketSubprotocolGraphqlWS))
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name:       "QueryRoot",
+			Interfaces: nil,
+			Fields: graphql.Fields{
+				"getFoo": &graphql.Field{
+					Type: graphql.Int,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return 123, nil
+					},
+				},
+				"getError": &graphql.Field{
+					Type: graphql.Int,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return nil, errors.New("someerr")
+					},
+				},
+			},
+		}),
+		Extensions: []graphql.Extension{
+			ex1,
+			ex2,
+		},
+	})
+
+	assert.NoError(t, err)
+
+	server, err := NewServer(schema, opts...)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, server)
+
+	srv := httptest.NewServer(server)
+
+	defer srv.Close()
+
+	u := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
+		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+	})
+
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = conn.Close()
+		_ = resp.Body.Close()
+	}()
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:      "",
+		Type:    apollows.OperationConnectionInit,
+		Payload: apollows.Data{},
+	})
+
+	assert.NoError(t, err)
+
+	var msg apollows.Message
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, apollows.OperationConnectionAck, msg.Type)
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:   "1",
+		Type: apollows.OperationStart,
+		Payload: apollows.Data{
+			Value: apollows.PayloadOperation{
+				Query: `query { getError }`,
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "1", msg.ID)
+	assert.Equal(t, apollows.OperationError, msg.Type)
+
+	pd, err := msg.Payload.ReadPayloadError()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, pd.Extensions["errors"])
+	assert.Len(t, pd.Extensions["errors"], 2)
 }

@@ -120,6 +120,10 @@ func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
 	rooterr := gqlerrors.NewFormattedError(errmsg)
 
 	if len(errs) > 0 {
+		if (rooterr.Extensions) == nil {
+			rooterr.Extensions = make(map[string]interface{})
+		}
+
 		rooterr.Extensions["errors"] = errs
 	}
 
