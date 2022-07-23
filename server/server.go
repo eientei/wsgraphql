@@ -402,7 +402,7 @@ func (server *Server) ServePlainHTTP(ctx mutcontext.MutableContext, w http.Respo
 		RequestString:  payload.Query,
 		VariableValues: payload.Variables,
 		OperationName:  payload.OperationName,
-		Context:        ctx,
+		Context:        opctx,
 	}
 
 	result = graphql.Do(params)
