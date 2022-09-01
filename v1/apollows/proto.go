@@ -197,6 +197,15 @@ type Data struct {
 	json.RawMessage
 }
 
+// Ptr returns non-nil pointer to Data if it is not empty
+func (payload *Data) Ptr() *Data {
+	if payload == nil || payload.Value == nil {
+		return nil
+	}
+
+	return payload
+}
+
 // ReadPayloadData client-side method to parse server response
 func (payload *Data) ReadPayloadData() (*PayloadDataResponse, error) {
 	if payload == nil {
@@ -288,18 +297,12 @@ type PayloadData PayloadDataRaw
 
 // MarshalJSON serializes PayloadData to JSON, excluding empty data
 func (payload PayloadData) MarshalJSON() (bs []byte, err error) {
-	var data *Data
-
-	if payload.Data.Value != nil {
-		data = &payload.Data
-	}
-
 	return json.Marshal(struct {
 		Data *Data `json:"data,omitempty"`
 		PayloadDataRaw
 	}{
 		PayloadDataRaw: PayloadDataRaw(payload),
-		Data:           data,
+		Data:           payload.Data.Ptr(),
 	})
 }
 
@@ -335,17 +338,11 @@ type Message MessageRaw
 
 // MarshalJSON serializes Message to JSON, excluding empty id or payload from serialized fields.
 func (message Message) MarshalJSON() (bs []byte, err error) {
-	var payload *Data
-
-	if message.Payload.Value != nil {
-		payload = &message.Payload
-	}
-
 	return json.Marshal(struct {
 		Payload *Data `json:"payload,omitempty"`
 		MessageRaw
 	}{
 		MessageRaw: MessageRaw(message),
-		Payload:    payload,
+		Payload:    message.Payload.Ptr(),
 	})
 }
