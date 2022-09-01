@@ -792,7 +792,7 @@ func TestNewServerWebsocketReinitGTWS(t *testing.T) {
 	u := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+		"sec-websocket-protocol": []string{apollows.WebsocketSubprotocolGraphqlTransportWS.String()},
 	})
 
 	assert.NoError(t, err)
@@ -906,7 +906,7 @@ func TestNewServerWebsocketOperationRestartGTWS(t *testing.T) {
 	u := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+		"sec-websocket-protocol": []string{apollows.WebsocketSubprotocolGraphqlTransportWS.String()},
 	})
 
 	assert.NoError(t, err)
@@ -1024,7 +1024,7 @@ func TestNewServerWebsocketOperationInvalidGTWS(t *testing.T) {
 	u := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+		"sec-websocket-protocol": []string{apollows.WebsocketSubprotocolGraphqlTransportWS.String()},
 	})
 
 	assert.NoError(t, err)
@@ -1136,7 +1136,7 @@ func TestNewServerWebsocketOperationErrorGTWS(t *testing.T) {
 	u := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
-		"sec-websocket-protocol": []string{string(apollows.WebsocketSubprotocolGraphqlTransportWS)},
+		"sec-websocket-protocol": []string{apollows.WebsocketSubprotocolGraphqlTransportWS.String()},
 	})
 
 	assert.NoError(t, err)

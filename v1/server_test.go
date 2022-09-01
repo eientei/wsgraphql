@@ -128,8 +128,7 @@ func testNewServerProtocols(t *testing.T, protocols []apollows.Protocol, opts ..
 	var strprotocols []string
 
 	for _, p := range protocols {
-		strprotocols = append(strprotocols, string(p))
-
+		strprotocols = append(strprotocols, p.String())
 		opts = append(opts, WithProtocol(p))
 	}
 
