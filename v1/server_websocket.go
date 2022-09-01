@@ -205,9 +205,11 @@ func (req *websocketRequest) writeWebsocketMessage(ctx mutable.Context, t apollo
 func (req *websocketRequest) readWebsocketInit(msg *apollows.Message) (err error) {
 	init := make(apollows.PayloadInit)
 
-	err = json.Unmarshal(msg.Payload.RawMessage, &init)
-	if err != nil {
-		return
+	if len(msg.Payload.RawMessage) > 0 {
+		err = json.Unmarshal(msg.Payload.RawMessage, &init)
+		if err != nil {
+			return
+		}
 	}
 
 	err = req.server.callbacks.OnConnect(req.ctx, init)

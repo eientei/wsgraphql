@@ -265,13 +265,33 @@ type PayloadOperation struct {
 	OperationName string                 `json:"operationName"`
 }
 
-// PayloadData provides server-side response for previously started operation
-type PayloadData struct {
-	Data Data `json:"data,omitempty"`
+// PayloadDataRaw provides server-side response for previously started operation
+type PayloadDataRaw struct {
+	Data Data `json:"data"`
 
 	// see https://github.com/graph-gophers/graphql-go#custom-errors
 	// for adding custom error attributes
 	Errors []error `json:"errors,omitempty"`
+}
+
+// PayloadData type-alias for serialization
+type PayloadData PayloadDataRaw
+
+// MarshalJSON serializes PayloadData to JSON, excluding empty data
+func (payload PayloadData) MarshalJSON() (bs []byte, err error) {
+	var data *Data
+
+	if payload.Data.Value != nil {
+		data = &payload.Data
+	}
+
+	return json.Marshal(struct {
+		Data *Data `json:"data,omitempty"`
+		PayloadDataRaw
+	}{
+		PayloadDataRaw: PayloadDataRaw(payload),
+		Data:           data,
+	})
 }
 
 // PayloadErrorLocation error location in originating request
@@ -294,9 +314,29 @@ type PayloadDataResponse struct {
 	Errors []PayloadError         `json:"errors,omitempty"`
 }
 
-// Message encapsulates every message within apollows protocol in both directions
-type Message struct {
+// MessageRaw encapsulates every message within apollows protocol in both directions
+type MessageRaw struct {
 	ID      string    `json:"id,omitempty"`
 	Type    Operation `json:"type"`
-	Payload Data      `json:"payload,omitempty"`
+	Payload Data      `json:"payload"`
+}
+
+// Message type-alias for (de-)serialization
+type Message MessageRaw
+
+// MarshalJSON serializes Message to JSON, excluding empty id or payload from serialized fields.
+func (message Message) MarshalJSON() (bs []byte, err error) {
+	var payload *Data
+
+	if message.Payload.Value != nil {
+		payload = &message.Payload
+	}
+
+	return json.Marshal(struct {
+		Payload *Data `json:"payload,omitempty"`
+		MessageRaw
+	}{
+		MessageRaw: MessageRaw(message),
+		Payload:    payload,
+	})
 }

@@ -182,3 +182,55 @@ func TestWrapError(t *testing.T) {
 
 	assert.True(t, errors.Is(err, io.EOF))
 }
+
+func TestMessageMarshal(t *testing.T) {
+	data := Message{
+		ID:   "123",
+		Type: OperationConnectionAck,
+		Payload: Data{
+			Value: "foo",
+		},
+	}
+
+	bs, err := json.Marshal(data)
+
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"id":"123","type":"connection_ack","payload":"foo"}`, string(bs))
+}
+
+func TestMessageMarshalEmpty(t *testing.T) {
+	data := Message{
+		ID:      "123",
+		Type:    OperationConnectionAck,
+		Payload: Data{},
+	}
+
+	bs, err := json.Marshal(data)
+
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"id":"123","type":"connection_ack"}`, string(bs))
+}
+
+func TestPayloadDataMarshal(t *testing.T) {
+	data := PayloadData{
+		Data: Data{
+			Value: "foo",
+		},
+	}
+
+	bs, err := json.Marshal(data)
+
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"data":"foo"}`, string(bs))
+}
+
+func TestPayloadDataMarshalEmpty(t *testing.T) {
+	data := PayloadData{
+		Data: Data{},
+	}
+
+	bs, err := json.Marshal(data)
+
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{}`, string(bs))
+}
