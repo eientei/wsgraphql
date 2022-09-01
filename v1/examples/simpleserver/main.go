@@ -155,8 +155,8 @@ func main() {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			Subprotocols: []string{
-				string(wsgraphql.WebsocketSubprotocolGraphqlWS),
-				string(wsgraphql.WebsocketSubprotocolGraphqlTransportWS),
+				wsgraphql.WebsocketSubprotocolGraphqlWS.String(),
+				wsgraphql.WebsocketSubprotocolGraphqlTransportWS.String(),
 			},
 		})),
 	)
