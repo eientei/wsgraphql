@@ -254,6 +254,17 @@ func (payload Data) MarshalJSON() (bs []byte, err error) {
 	return json.Marshal(payload.Value)
 }
 
+func (message Message) MarshalJSON() (bs []byte, err error) {
+	mapJson := map[string]interface{}{"type": message.Type}
+	if message.ID != "" {
+		mapJson["id"] = message.ID
+	}
+	if message.Payload.Value != nil {
+		mapJson["payload"] = message.Payload.Value
+	}
+	return json.Marshal(mapJson)
+}
+
 // PayloadInit provides connection params
 type PayloadInit map[string]interface{}
 
