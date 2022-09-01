@@ -48,7 +48,7 @@ srv, err := wsgraphql.NewServer(
 	wsgraphql.WithUpgrader(gorillaws.Wrap(&websocket.Upgrader{
 		Subprotocols: []string{
 			string(wsgraphql.WebsocketSubprotocolGraphqlWS),
-            string(wsgraphql.WebsocketSubprotocolGraphqlTransportWS),
+			string(wsgraphql.WebsocketSubprotocolGraphqlTransportWS),
 		},
 	})),
 )
