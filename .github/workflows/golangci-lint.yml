@@ -21,3 +21,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.48
+      - name: test
+        run: go test -v ./...
