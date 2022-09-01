@@ -28,6 +28,10 @@ func (conn conn) Close(code int, message string) error {
 	return err
 }
 
+func (conn conn) Subprotocol() string {
+	return conn.Conn.Subprotocol()
+}
+
 // Upgrade implementation
 func (g Wrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHeader http.Header) (wsgraphql.Conn, error) {
 	c, err := g.Upgrader.Upgrade(w, r, responseHeader)

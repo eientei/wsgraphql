@@ -83,13 +83,18 @@ func NewServer(
 ) (Server, error) {
 	var c serverConfig
 
-	c.subscriptionProtocol = apollows.WebsocketSubprotocolGraphqlWS
+	c.subscriptionProtocols = make(map[apollows.Protocol]struct{})
 
 	for _, o := range options {
 		err := o(&c)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if len(c.subscriptionProtocols) == 0 {
+		c.subscriptionProtocols[apollows.WebsocketSubprotocolGraphqlWS] = struct{}{}
+		c.subscriptionProtocols[apollows.WebsocketSubprotocolGraphqlTransportWS] = struct{}{}
 	}
 
 	initCallbacks(&c)
@@ -190,10 +195,10 @@ func WithoutHTTPQueries() ServerOption {
 	}
 }
 
-// WithProtocol option sets protocol for this sever to use
+// WithProtocol option sets protocol for this sever to use. May be specified multiple times.
 func WithProtocol(protocol apollows.Protocol) ServerOption {
 	return func(config *serverConfig) error {
-		config.subscriptionProtocol = protocol
+		config.subscriptionProtocols[protocol] = struct{}{}
 
 		return nil
 	}

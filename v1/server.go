@@ -17,13 +17,13 @@ var (
 )
 
 type serverConfig struct {
-	upgrader             Upgrader
-	callbacks            Callbacks
-	rootObject           map[string]interface{}
-	subscriptionProtocol apollows.Protocol
-	keepalive            time.Duration
-	connectTimeout       time.Duration
-	rejectHTTPQueries    bool
+	upgrader              Upgrader
+	callbacks             Callbacks
+	rootObject            map[string]interface{}
+	subscriptionProtocols map[apollows.Protocol]struct{}
+	keepalive             time.Duration
+	connectTimeout        time.Duration
+	rejectHTTPQueries     bool
 }
 
 type serverImpl struct {

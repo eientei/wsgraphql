@@ -12,4 +12,5 @@ type Conn interface {
 	ReadJSON(v interface{}) error
 	WriteJSON(v interface{}) error
 	Close(code int, message string) error
+	Subprotocol() string
 }

@@ -124,19 +124,25 @@ func testNewSchema(t *testing.T) graphql.Schema {
 	return schema
 }
 
-func testNewServer(t *testing.T, protocol apollows.Protocol, opts ...ServerOption) *httptest.Server {
+func testNewServerProtocols(t *testing.T, protocols []apollows.Protocol, opts ...ServerOption) *httptest.Server {
+	var strprotocols []string
+
+	for _, p := range protocols {
+		strprotocols = append(strprotocols, string(p))
+
+		opts = append(opts, WithProtocol(p))
+	}
+
 	opts = append(opts, WithUpgrader(testWrapper{
 		Upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
-			Subprotocols:    []string{string(protocol)},
+			Subprotocols:    strprotocols,
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
 		},
 	}))
-
-	opts = append(opts, WithProtocol(protocol))
 
 	server, err := NewServer(testNewSchema(t), opts...)
 
@@ -144,4 +150,8 @@ func testNewServer(t *testing.T, protocol apollows.Protocol, opts ...ServerOptio
 	assert.NotNil(t, server)
 
 	return httptest.NewServer(server)
+}
+
+func testNewServer(t *testing.T, protocol apollows.Protocol, opts ...ServerOption) *httptest.Server {
+	return testNewServerProtocols(t, []apollows.Protocol{protocol}, opts...)
 }

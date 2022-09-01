@@ -5,6 +5,7 @@ package apollows
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 )
 
@@ -18,6 +19,9 @@ const (
 	// WebsocketSubprotocolGraphqlTransportWS websocket subprotocol exepected by graphql-ws implementations
 	WebsocketSubprotocolGraphqlTransportWS Protocol = "graphql-transport-ws"
 )
+
+// ErrUnknownProtocol indicates that unknown subscription protocol was requested
+var ErrUnknownProtocol = errors.New("unknown subscription protocol")
 
 // Operation type is used to enumerate possible apollo message types
 type Operation string

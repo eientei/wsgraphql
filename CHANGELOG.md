@@ -1,3 +1,12 @@
+v1.4.0
+------
+- Added support for per-request protocol selection for websocket subscriptions using websocket 
+  subprotocol negotiation. (#2)
+
+v1.3.4
+------
+- Fixed serialization of empty data/payloads (#1)
+
 v1.3.0
 ------
 - Breaking change: root object moved to functional options parametrization

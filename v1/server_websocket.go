@@ -19,6 +19,7 @@ type websocketRequest struct {
 	operations map[string]mutable.Context
 	ws         Conn
 	server     *serverImpl
+	protocol   apollows.Protocol
 	wg         sync.WaitGroup
 	m          sync.RWMutex
 	init       bool
@@ -39,7 +40,22 @@ func (server *serverImpl) serveWebsocketRequest(
 		return
 	}
 
+	reqctx.Set(ContextKeyWebsocketConnection, ws)
+	reqctx.Set(ContextKeyHTTPResponseStarted, true)
+
+	protocol := apollows.Protocol(ws.Subprotocol())
+
+	_, known := server.subscriptionProtocols[protocol]
+	if !known {
+		if ws != nil {
+			_ = ws.Close(int(apollows.EventCloseNormal), apollows.ErrUnknownProtocol.Error())
+		}
+
+		return apollows.ErrUnknownProtocol
+	}
+
 	req := &websocketRequest{
+		protocol:   protocol,
 		ctx:        reqctx,
 		outgoing:   make(chan outgoingMessage, 1),
 		operations: make(map[string]mutable.Context),
@@ -47,12 +63,9 @@ func (server *serverImpl) serveWebsocketRequest(
 		server:     server,
 	}
 
-	reqctx.Set(ContextKeyWebsocketConnection, ws)
-	reqctx.Set(ContextKeyHTTPResponseStarted, true)
-
 	var tickerType apollows.Operation
 
-	switch server.subscriptionProtocol {
+	switch req.protocol {
 	case apollows.WebsocketSubprotocolGraphqlWS:
 		tickerType = apollows.OperationKeepAlive
 	case apollows.WebsocketSubprotocolGraphqlTransportWS:
@@ -95,7 +108,7 @@ func (server *serverImpl) serveWebsocketRequest(
 		}
 
 		if err != nil {
-			_ = ws.Close(int(apollows.EventCloseError), err.Error())
+			_ = ws.Close(int(apollows.EventCloseNormal), err.Error())
 		}
 	}
 }
@@ -133,7 +146,7 @@ func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
 func (req *websocketRequest) handleError(ctx mutable.Context, err error, execution bool) {
 	awerr, ok := err.(apollows.Error)
 	if ok {
-		if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS {
+		if req.protocol == apollows.WebsocketSubprotocolGraphqlWS {
 			req.writeWebsocketMessage(
 				ctx,
 				apollows.OperationConnectionError,
@@ -154,7 +167,7 @@ func (req *websocketRequest) handleError(ctx mutable.Context, err error, executi
 		switch {
 		case execution:
 			req.writeWebsocketData(ctx, res.Result)
-		case req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS:
+		case req.protocol == apollows.WebsocketSubprotocolGraphqlWS:
 			req.writeWebsocketMessage(ctx, apollows.OperationError, combineErrors(res.Result.Errors))
 		default:
 			req.writeWebsocketMessage(ctx, apollows.OperationError, res.Result.Errors)
@@ -169,7 +182,7 @@ func (req *websocketRequest) handleError(ctx mutable.Context, err error, executi
 func (req *websocketRequest) writeWebsocketData(ctx mutable.Context, data *graphql.Result) {
 	var t apollows.Operation
 
-	switch req.server.subscriptionProtocol {
+	switch req.protocol {
 	case apollows.WebsocketSubprotocolGraphqlWS:
 		t = apollows.OperationData
 	case apollows.WebsocketSubprotocolGraphqlTransportWS:
@@ -223,7 +236,7 @@ func (req *websocketRequest) readWebsocketInit(msg *apollows.Message) (err error
 }
 
 func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err error) {
-	if !req.init && req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+	if !req.init && req.protocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
 		return apollows.EventUnauthorized
 	}
 
@@ -254,7 +267,7 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err erro
 		}
 
 		if !ContextOperationStopped(opctx) ||
-			req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlWS {
+			req.protocol == apollows.WebsocketSubprotocolGraphqlWS {
 			req.writeWebsocketMessage(opctx, apollows.OperationComplete, nil)
 		}
 
@@ -271,7 +284,7 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err erro
 }
 
 func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) (err error) {
-	if !req.init && req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+	if !req.init && req.protocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
 		return apollows.EventUnauthorized
 	}
 
@@ -288,7 +301,7 @@ func (req *websocketRequest) readWebsocketStop(msg *apollows.Message) (err error
 }
 
 func (req *websocketRequest) readWebsocketTerminate() (err error) {
-	if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+	if req.protocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
 		return apollows.EventUnauthorized
 	}
 
@@ -383,7 +396,7 @@ func (req *websocketRequest) serveWebsocketOperation(
 
 	err = json.Unmarshal(msg.Payload.RawMessage, &payload)
 	if err != nil {
-		if req.server.subscriptionProtocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
+		if req.protocol == apollows.WebsocketSubprotocolGraphqlTransportWS {
 			err = apollows.WrapError(err, apollows.EventInvalidMessage)
 		}
 
