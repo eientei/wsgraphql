@@ -12,6 +12,11 @@ import (
 // Protocol websocket subprotocol defining server behavior
 type Protocol string
 
+// String conversion
+func (p Protocol) String() string {
+	return string(p)
+}
+
 const (
 	// WebsocketSubprotocolGraphqlWS websocket subprotocol expected by subscriptions-transport-ws implementations
 	WebsocketSubprotocolGraphqlWS Protocol = "graphql-ws"
