@@ -47,7 +47,7 @@ const (
 	OperationSubscribe Operation = "subscribe"
 
 	// OperationTerminate [GWS]
-	// client request to gracefully close the connection, equialent to closing the websocket
+	// client request to gracefully close the connection, equivalent to closing the websocket
 	OperationTerminate Operation = "connection_terminate"
 
 	// OperationConnectionError [GWS]
