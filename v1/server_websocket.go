@@ -122,8 +122,16 @@ func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
 
 	var errmsgs []string
 
+	combinedext := make(map[string]interface{})
+
 	for _, err := range errs {
-		errmsgs = append(errmsgs, err.Error())
+		fmterr := formatError(err)
+
+		for k, v := range fmterr.Extensions {
+			combinedext[k] = v
+		}
+
+		errmsgs = append(errmsgs, fmterr.Error())
 	}
 
 	if len(errmsgs) > 0 {
@@ -133,11 +141,8 @@ func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
 	rooterr := gqlerrors.NewFormattedError(errmsg)
 
 	if len(errs) > 0 {
-		if (rooterr.Extensions) == nil {
-			rooterr.Extensions = make(map[string]interface{})
-		}
-
-		rooterr.Extensions["errors"] = errs
+		combinedext["errors"] = errs
+		rooterr.Extensions = combinedext
 	}
 
 	return rooterr
@@ -467,6 +472,14 @@ func (req *websocketRequest) serveWebsocketOperation(
 			if !ok {
 				return
 			}
+
+			var tgterrs []gqlerrors.FormattedError
+
+			for _, src := range result.Errors {
+				tgterrs = append(tgterrs, formatError(src))
+			}
+
+			result.Errors = tgterrs
 
 			err = req.server.callbacks.OnOperationResult(opctx, &payload, result)
 			if err != nil {

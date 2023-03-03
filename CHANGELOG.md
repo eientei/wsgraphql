@@ -1,3 +1,7 @@
+v1.4.1
+------
+- Work-around for ExtendedError extensions not rendering in subscription is added
+
 v1.4.0
 ------
 - Added support for per-request protocol selection for websocket subscriptions using websocket 

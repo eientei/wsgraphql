@@ -246,6 +246,37 @@ func testNewServerWebsocketGWS(t *testing.T, srv *httptest.Server) {
 	assert.Equal(t, "6", msg.ID)
 	assert.Equal(t, apollows.OperationComplete, msg.Type)
 
+	err = conn.WriteJSON(apollows.Message{
+		ID:   "7",
+		Type: apollows.OperationStart,
+		Payload: apollows.Data{
+			Value: apollows.PayloadOperation{
+				Query: `subscription { errors }`,
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "7", msg.ID)
+	assert.Equal(t, apollows.OperationData, msg.Type)
+
+	pd, err = msg.Payload.ReadPayloadData()
+
+	assert.NoError(t, err)
+	assert.Len(t, pd.Errors, 1)
+	assert.EqualValues(t, nil, pd.Data["errors"])
+	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "7", msg.ID)
+	assert.Equal(t, apollows.OperationComplete, msg.Type)
+
 	assert.NoError(t, conn.Close())
 }
 
@@ -467,6 +498,37 @@ func testNewServerWebsocketGWTS(t *testing.T, srv *httptest.Server) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "6", msg.ID)
+	assert.Equal(t, apollows.OperationComplete, msg.Type)
+
+	err = conn.WriteJSON(apollows.Message{
+		ID:   "7",
+		Type: apollows.OperationStart,
+		Payload: apollows.Data{
+			Value: apollows.PayloadOperation{
+				Query: `subscription { errors }`,
+			},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "7", msg.ID)
+	assert.Equal(t, apollows.OperationNext, msg.Type)
+
+	pd, err = msg.Payload.ReadPayloadData()
+
+	assert.NoError(t, err)
+	assert.Len(t, pd.Errors, 1)
+	assert.EqualValues(t, nil, pd.Data["errors"])
+	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+
+	err = conn.ReadJSON(&msg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "7", msg.ID)
 	assert.Equal(t, apollows.OperationComplete, msg.Type)
 
 	assert.NoError(t, conn.Close())
@@ -1120,6 +1182,7 @@ func TestNewServerWebsocketOperationErrorGWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.Contains(t, pd.Errors[0].Message, "someerr")
+	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 
@@ -1184,6 +1247,7 @@ func TestNewServerWebsocketOperationErrorGTWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.Contains(t, pd.Errors[0].Message, "someerr")
+	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 

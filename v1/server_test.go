@@ -43,6 +43,15 @@ func (g testWrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHea
 	}, nil
 }
 
+type extendedError struct {
+	error
+	extensions map[string]interface{}
+}
+
+func (ext *extendedError) Extensions() map[string]interface{} {
+	return ext.extensions
+}
+
 func testNewSchema(t *testing.T) graphql.Schema {
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
@@ -58,7 +67,10 @@ func testNewSchema(t *testing.T) graphql.Schema {
 				"getError": &graphql.Field{
 					Type: graphql.Int,
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-						return nil, errors.New("someerr")
+						return nil, &extendedError{
+							error:      errors.New("someerr"),
+							extensions: map[string]interface{}{"foo": "bar"},
+						}
 					},
 				},
 			},
@@ -112,6 +124,18 @@ func testNewSchema(t *testing.T) graphql.Schema {
 						ch := make(chan interface{})
 
 						return ch, nil
+					},
+				},
+				"errors": &graphql.Field{
+					Type: graphql.Int,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return p.Source, nil
+					},
+					Subscribe: func(p graphql.ResolveParams) (interface{}, error) {
+						return nil, &extendedError{
+							error:      errors.New("someerr"),
+							extensions: map[string]interface{}{"foo": "bar"},
+						}
 					},
 				},
 			},
