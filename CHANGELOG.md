@@ -1,3 +1,7 @@
+v1.4.2
+------
+- Support setting headers in websocket upgrade response
+
 v1.4.1
 ------
 - Work-around for ExtendedError extensions not rendering in subscription is added
