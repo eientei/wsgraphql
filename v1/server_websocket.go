@@ -35,7 +35,7 @@ func (server *serverImpl) serveWebsocketRequest(
 	w http.ResponseWriter,
 	r *http.Request,
 ) (err error) {
-	ws, err := server.upgrader.Upgrade(w, r, nil)
+	ws, err := server.upgrader.Upgrade(w, r, w.Header())
 	if err != nil {
 		return
 	}

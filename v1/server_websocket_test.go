@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eientei/wsgraphql/v1/apollows"
+	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/gorilla/websocket"
 	"github.com/graphql-go/graphql"
 	"github.com/stretchr/testify/assert"
@@ -1419,4 +1420,72 @@ func TestNewServerWebsocketCombineErrorsGWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, pd.Extensions["errors"])
 	assert.Len(t, pd.Extensions["errors"], 2)
+}
+
+func TestNewServerWebsocketHeaders(t *testing.T) {
+	var opts []ServerOption
+
+	opts = append(opts, WithUpgrader(testWrapper{
+		Upgrader: &websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			Subprotocols:    []string{apollows.WebsocketSubprotocolGraphqlWS.String()},
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	}), WithConnectTimeout(time.Second))
+
+	opts = append(
+		opts,
+		WithProtocol(apollows.WebsocketSubprotocolGraphqlWS),
+		WithCallbacks(Callbacks{
+			OnRequest: func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter) error {
+				w.Header().Set("foo", "bar")
+
+				return nil
+			},
+		}),
+	)
+
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: graphql.NewObject(graphql.ObjectConfig{
+			Name:       "QueryRoot",
+			Interfaces: nil,
+			Fields: graphql.Fields{
+				"getFoo": &graphql.Field{
+					Type: graphql.Int,
+					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+						return 123, nil
+					},
+				},
+			},
+		}),
+	})
+
+	assert.NoError(t, err)
+
+	server, err := NewServer(schema, opts...)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, server)
+
+	srv := httptest.NewServer(server)
+
+	defer srv.Close()
+
+	u := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	conn, resp, err := websocket.DefaultDialer.Dial(u, http.Header{
+		"sec-websocket-protocol": []string{apollows.WebsocketSubprotocolGraphqlWS.String()},
+	})
+
+	assert.NoError(t, err)
+
+	defer func() {
+		_ = conn.Close()
+		_ = resp.Body.Close()
+	}()
+
+	assert.Equal(t, "bar", resp.Header.Get("foo"))
 }
