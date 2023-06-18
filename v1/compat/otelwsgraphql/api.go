@@ -117,7 +117,7 @@ func WithSpanAttributesResolver(resolver SpanAttributesResolver) OperationOption
 var queryRegex = regexp.MustCompile(`(query|mutation|subscription)\s*(\w*)`)
 
 // DefaultSpanNameResolver default span name resolver function
-func DefaultSpanNameResolver(ctx context.Context, payload *apollows.PayloadOperation) string {
+func DefaultSpanNameResolver(_ context.Context, payload *apollows.PayloadOperation) string {
 	parts := queryRegex.FindStringSubmatch(payload.Query)
 	name := payload.OperationName
 	kind := operationQuery
@@ -139,7 +139,7 @@ func DefaultSpanNameResolver(ctx context.Context, payload *apollows.PayloadOpera
 
 // DefaultSpanAttributesResolver default span attributes resolver function
 func DefaultSpanAttributesResolver(
-	ctx context.Context,
+	_ context.Context,
 	payload *apollows.PayloadOperation,
 ) (attrs []attribute.KeyValue) {
 	parts := queryRegex.FindStringSubmatch(payload.Query)

@@ -212,8 +212,8 @@ func WriteError(ctx context.Context, w http.ResponseWriter, err error) {
 }
 
 func identityResultProcessor(
-	ctx context.Context,
-	payload *apollows.PayloadOperation,
+	_ context.Context,
+	_ *apollows.PayloadOperation,
 	result *graphql.Result,
 ) *graphql.Result {
 	return result
