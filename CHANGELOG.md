@@ -1,3 +1,10 @@
+v1.5.0
+------
+- Added `WithInterceptors` option to allow context-based third-party instrumentation
+- `WithCallbacks` is deprecated in favor of `WithInterceptors` and will be removed by 2024.
+- Added openetelemetry instrumentation in compat package.
+- Bumped graphql-go dependency to v0.8.1 with critical security fixes
+
 v1.4.2
 ------
 - Support setting headers in websocket upgrade response

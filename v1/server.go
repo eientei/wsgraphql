@@ -1,14 +1,16 @@
 package wsgraphql
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
 
+	"github.com/graphql-go/graphql/gqlerrors"
+
 	"github.com/eientei/wsgraphql/v1/apollows"
 	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
-	"github.com/graphql-go/graphql/gqlerrors"
 )
 
 var (
@@ -18,7 +20,8 @@ var (
 
 type serverConfig struct {
 	upgrader              Upgrader
-	callbacks             Callbacks
+	interceptors          Interceptors
+	resultProcessor       ResultProcessor
 	rootObject            map[string]interface{}
 	subscriptionProtocols map[apollows.Protocol]struct{}
 	keepalive             time.Duration
@@ -32,6 +35,16 @@ type serverImpl struct {
 	serverConfig
 }
 
+func (server *serverImpl) handleHTTPRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) (err error) {
+	if r.Header.Get("connection") != "" && r.Header.Get("upgrade") != "" && server.upgrader != nil {
+		err = server.serveWebsocketRequest(ctx, w, r)
+	} else {
+		err = server.servePlainRequest(ctx)
+	}
+
+	return
+}
+
 func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqctx := mutable.NewMutableContext(r.Context())
 
@@ -39,38 +52,71 @@ func (server *serverImpl) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqctx.Set(ContextKeyHTTPRequest, r)
 	reqctx.Set(ContextKeyHTTPResponseWriter, w)
 
-	var err error
+	_ = server.interceptors.HTTPRequest(reqctx, w, r, server.handleHTTPRequest)
 
-	defer func() {
-		err = server.callbacks.OnDisconnect(reqctx, err)
+	reqctx.Cancel()
+}
 
-		if err != nil {
-			if _, ok := err.(resultError); !ok {
-				err = resultError{
-					Result: &graphql.Result{
-						Errors: []gqlerrors.FormattedError{
-							gqlerrors.FormatError(err),
-						},
-					},
-				}
+func (server *serverImpl) processResults(
+	ctx context.Context,
+	payload *apollows.PayloadOperation,
+	cres chan *graphql.Result,
+	write func(ctx context.Context, result *graphql.Result) error,
+) (err error) {
+	OperationContext(ctx).Set(ContextKeyOperationExecuted, true)
+
+	for {
+		select {
+		case <-ctx.Done():
+			if !ContextOperationStopped(ctx) {
+				err = ctx.Err()
+			}
+
+			return
+		case result, ok := <-cres:
+			if !ok {
+				return
+			}
+
+			err = server.processResult(ctx, payload, result, write)
+			if err != nil {
+				return err
 			}
 		}
+	}
+}
 
-		server.callbacks.OnRequestDone(reqctx, r, w, err)
+func (server *serverImpl) processResult(
+	ctx context.Context,
+	payload *apollows.PayloadOperation,
+	result *graphql.Result,
+	write func(ctx context.Context, result *graphql.Result) error,
+) error {
+	result = server.resultProcessor(ctx, payload, result)
 
-		reqctx.Cancel()
-	}()
+	var tgterrs []gqlerrors.FormattedError
 
-	err = server.callbacks.OnRequest(reqctx, r, w)
+	err, ok := result.Data.(error)
+	if ok {
+		tgterrs = append(tgterrs, FormatError(err))
+	}
+
+	for _, src := range result.Errors {
+		tgterrs = append(tgterrs, FormatError(src))
+	}
+
+	result.Errors = tgterrs
+
+	err = write(ctx, result)
 	if err != nil {
-		return
+		return err
 	}
 
-	if r.Header.Get("connection") == "" || r.Header.Get("upgrade") == "" || server.upgrader == nil {
-		err = server.servePlainRequest(reqctx, w, r)
-
-		return
+	if result.HasErrors() {
+		return ResultError{
+			Result: result,
+		}
 	}
 
-	err = server.serveWebsocketRequest(reqctx, w, r)
+	return nil
 }

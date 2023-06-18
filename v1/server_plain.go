@@ -1,6 +1,7 @@
 package wsgraphql
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -10,80 +11,33 @@ import (
 	"github.com/graphql-go/graphql"
 )
 
-type resultError struct {
+// ResultError passes error result as error
+type ResultError struct {
 	*graphql.Result
 }
 
-func (r resultError) Error() string {
+// Error implementation
+func (r ResultError) Error() string {
 	bs, _ := json.Marshal(r.Result)
 
 	return string(bs)
 }
 
-func (server *serverImpl) servePlainRequest(
-	reqctx mutable.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-) (err error) {
-	if server.rejectHTTPQueries {
-		return errHTTPQueryRejected
-	}
-
-	err = server.callbacks.OnConnect(reqctx, nil)
-	if err != nil {
-		return
-	}
-
-	var payload apollows.PayloadOperation
-
-	opctx := mutable.NewMutableContext(reqctx)
-
-	defer opctx.Cancel()
-
-	err = json.NewDecoder(r.Body).Decode(&payload)
-	if err != nil {
-		return
-	}
-
-	defer func() {
-		err = server.callbacks.OnOperationDone(opctx, &payload, err)
-	}()
-
-	err = server.callbacks.OnOperation(opctx, &payload)
-	if err != nil {
-		return err
-	}
-
-	params, astdoc, subscription, result := server.parseAST(opctx, &payload)
-
-	err = server.callbacks.OnOperationValidation(opctx, &payload, result)
-	if err != nil {
-		return err
-	}
-
-	if result != nil {
-		return resultError{Result: result}
-	}
-
-	w.Header().Set("content-type", "application/json")
-
-	var (
-		cres    chan *graphql.Result
-		flusher http.Flusher
-	)
+func (server *serverImpl) operationExecute(
+	ctx context.Context,
+	payload *apollows.PayloadOperation,
+) (cres chan *graphql.Result, err error) {
+	subscription := ContextSubscription(ctx)
+	astdoc := ContextAST(ctx)
 
 	if subscription {
-		flusher, _ = w.(http.Flusher)
-		w.Header().Set("x-content-type-options", "nosniff")
-		w.Header().Set("connection", "keep-alive")
-
 		cres = graphql.ExecuteSubscription(graphql.ExecuteParams{
 			Schema:        server.schema,
 			Root:          server.rootObject,
 			AST:           astdoc,
 			OperationName: payload.OperationName,
 			Args:          payload.Variables,
-			Context:       params.Context,
+			Context:       ctx,
 		})
 	} else {
 		cres = make(chan *graphql.Result, 1)
@@ -93,37 +47,92 @@ func (server *serverImpl) servePlainRequest(
 			AST:           astdoc,
 			OperationName: payload.OperationName,
 			Args:          payload.Variables,
-			Context:       params.Context,
+			Context:       ctx,
 		})
 		close(cres)
 	}
 
-	var ok bool
+	return
+}
 
-	for {
-		select {
-		case <-params.Context.Done():
-			return params.Context.Err()
-		case result, ok = <-cres:
-			if !ok {
-				return
-			}
-
-			err = server.callbacks.OnOperationResult(opctx, &payload, result)
-			if err != nil {
-				return err
-			}
-
-			err = server.writePlainResult(reqctx, result, w, flusher)
-			if err != nil {
-				return
-			}
-		}
+func (server *serverImpl) operationParse(
+	ctx context.Context,
+	payload *apollows.PayloadOperation,
+) (err error) {
+	err = server.parseAST(ctx, payload)
+	if err != nil {
+		return err
 	}
+
+	return
+}
+
+func (server *serverImpl) plainRequestOperation(
+	ctx context.Context,
+	payload *apollows.PayloadOperation,
+) (err error) {
+	err = server.interceptors.OperationParse(ctx, payload, server.operationParse)
+	if err != nil {
+		return err
+	}
+
+	w := ContextHTTPResponseWriter(ctx)
+
+	w.Header().Set("content-type", "application/json")
+
+	cres, err := server.interceptors.OperationExecute(
+		ctx,
+		payload,
+		server.operationExecute,
+	)
+	if err != nil {
+		return err
+	}
+
+	var flusher http.Flusher
+
+	if ContextSubscription(ctx) {
+		flusher, _ = w.(http.Flusher)
+		w.Header().Set("x-content-type-options", "nosniff")
+		w.Header().Set("connection", "keep-alive")
+	}
+
+	return server.processResults(ctx, payload, cres, func(ctx context.Context, result *graphql.Result) error {
+		return server.writePlainResult(ctx, result, w, flusher)
+	})
+}
+
+func (server *serverImpl) servePlainRequest(reqctx context.Context) (err error) {
+	if server.rejectHTTPQueries {
+		return errHTTPQueryRejected
+	}
+
+	err = server.interceptors.Init(reqctx, nil, func(nctx context.Context, init apollows.PayloadInit) error {
+		reqctx = nctx
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var payload apollows.PayloadOperation
+
+	err = json.NewDecoder(ContextHTTPRequest(reqctx).Body).Decode(&payload)
+	if err != nil {
+		return
+	}
+
+	opctx := mutable.NewMutableContext(reqctx)
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	defer opctx.Cancel()
+
+	return server.interceptors.Operation(opctx, &payload, server.plainRequestOperation)
 }
 
 func (server *serverImpl) writePlainResult(
-	reqctx mutable.Context,
+	reqctx context.Context,
 	result *graphql.Result,
 	w http.ResponseWriter,
 	flusher http.Flusher,
@@ -152,7 +161,7 @@ func (server *serverImpl) writePlainResult(
 		flusher.Flush()
 	}
 
-	reqctx.Set(ContextKeyHTTPResponseStarted, true)
+	RequestContext(reqctx).Set(ContextKeyHTTPResponseStarted, true)
 
 	return nil
 }

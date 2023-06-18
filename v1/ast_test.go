@@ -8,7 +8,6 @@ import (
 	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/gqlerrors"
-	"github.com/graphql-go/graphql/language/ast"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,17 +41,18 @@ func TestASTParse(t *testing.T) {
 	assert.True(t, ok)
 
 	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
 
-	params, astdoc, sub, result := impl.parseAST(opctx, &apollows.PayloadOperation{
+	err = impl.parseAST(opctx, &apollows.PayloadOperation{
 		Query:         `query { foo }`,
 		Variables:     nil,
 		OperationName: "",
 	})
 
-	assert.Nil(t, result)
-	assert.False(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.Nil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseSubscription(t *testing.T) {
@@ -98,17 +98,18 @@ func TestASTParseSubscription(t *testing.T) {
 	assert.True(t, ok)
 
 	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
 
-	params, astdoc, sub, result := impl.parseAST(opctx, &apollows.PayloadOperation{
+	err = impl.parseAST(opctx, &apollows.PayloadOperation{
 		Query:         `subscription { foo }`,
 		Variables:     nil,
 		OperationName: "",
 	})
 
-	assert.Nil(t, result)
-	assert.True(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.Nil(t, err)
+	assert.True(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 type testExt struct {
@@ -162,8 +163,9 @@ func (t *testExt) ResolveFieldDidStart(
 
 func testAstParseExtensions(
 	t *testing.T,
+	opctx mutable.Context,
 	f func(ext *testExt),
-) (params graphql.Params, astdoc *ast.Document, subscription bool, result *graphql.Result) {
+) (err error) {
 	text := &testExt{
 		name: "foo",
 		initFn: func(ctx context.Context, p *graphql.Params) context.Context {
@@ -233,8 +235,6 @@ func testAstParseExtensions(
 
 	assert.True(t, ok)
 
-	opctx := mutable.NewMutableContext(context.Background())
-
 	return impl.parseAST(opctx, &apollows.PayloadOperation{
 		Query:         `query { foo }`,
 		Variables:     nil,
@@ -243,44 +243,56 @@ func testAstParseExtensions(
 }
 
 func TestASTParseExtensions(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 
 	})
 
-	assert.Nil(t, result)
-	assert.False(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.Nil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseExtensionsPanicInit(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.initFn = func(ctx context.Context, p *graphql.Params) context.Context {
 			panic(1)
 		}
 	})
 
-	assert.NotNil(t, result)
-	assert.False(t, sub)
-	assert.Nil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.NotNil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.Nil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseExtensionsPanicValidation(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.validationDidStartFn = func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
 			panic(1)
 		}
 	})
 
-	assert.NotNil(t, result)
-	assert.False(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.NotNil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseExtensionsPanicValidationCb(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.validationDidStartFn = func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
 			return ctx, func(errors []gqlerrors.FormattedError) {
 				panic(1)
@@ -288,27 +300,33 @@ func TestASTParseExtensionsPanicValidationCb(t *testing.T) {
 		}
 	})
 
-	assert.NotNil(t, result)
-	assert.False(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.NotNil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseExtensionsPanicParse(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.parseDidStartFn = func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
 			panic(1)
 		}
 	})
 
-	assert.NotNil(t, result)
-	assert.False(t, sub)
-	assert.Nil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.NotNil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.Nil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }
 
 func TestASTParseExtensionsPanicParseCb(t *testing.T) {
-	params, astdoc, sub, result := testAstParseExtensions(t, func(ext *testExt) {
+	opctx := mutable.NewMutableContext(context.Background())
+	opctx.Set(ContextKeyOperationContext, opctx)
+
+	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.parseDidStartFn = func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
 			return ctx, func(err error) {
 				panic(1)
@@ -316,8 +334,8 @@ func TestASTParseExtensionsPanicParseCb(t *testing.T) {
 		}
 	})
 
-	assert.NotNil(t, result)
-	assert.False(t, sub)
-	assert.NotNil(t, astdoc)
-	assert.NotNil(t, params)
+	assert.NotNil(t, err)
+	assert.False(t, ContextSubscription(opctx))
+	assert.NotNil(t, ContextAST(opctx))
+	assert.NotNil(t, ContextOperationParams(opctx))
 }

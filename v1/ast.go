@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/eientei/wsgraphql/v1/apollows"
-	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/gqlerrors"
 	"github.com/graphql-go/graphql/language/ast"
@@ -161,22 +160,34 @@ func (server *serverImpl) handleExtensionsValidationDidStart(
 }
 
 func (server *serverImpl) parseAST(
-	opctx mutable.Context,
+	ctx context.Context,
 	payload *apollows.PayloadOperation,
-) (params graphql.Params, astdoc *ast.Document, subscription bool, result *graphql.Result) {
+) (err error) {
+	opctx := OperationContext(ctx)
+
+	var result *graphql.Result
+
+	defer func() {
+		if result != nil {
+			err = ResultError{Result: result}
+		}
+	}()
+
 	src := source.NewSource(&source.Source{
 		Body: []byte(payload.Query),
 		Name: "GraphQL request",
 	})
 
-	params = graphql.Params{
+	params := graphql.Params{
 		Schema:         server.schema,
 		RequestString:  payload.Query,
 		RootObject:     server.rootObject,
 		VariableValues: payload.Variables,
 		OperationName:  payload.OperationName,
-		Context:        opctx,
+		Context:        ctx,
 	}
+
+	opctx.Set(ContextKeyOperationParams, &params)
 
 	result = server.handleExtensionsInits(&params)
 	if result != nil {
@@ -191,6 +202,8 @@ func (server *serverImpl) parseAST(
 	}
 
 	astdoc, err := parser.Parse(parser.ParseParams{Source: src})
+
+	opctx.Set(ContextKeyAST, astdoc)
 
 	result = parseFinishFn(err)
 	if result != nil {
@@ -211,6 +224,8 @@ func (server *serverImpl) parseAST(
 		return
 	}
 
+	var subscription bool
+
 	for _, definition := range astdoc.Definitions {
 		op, ok := definition.(*ast.OperationDefinition)
 		if !ok {
@@ -224,7 +239,6 @@ func (server *serverImpl) parseAST(
 		}
 	}
 
-	opctx.Set(ContextKeyAST, astdoc)
 	opctx.Set(ContextKeySubscription, subscription)
 
 	return

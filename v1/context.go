@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/graphql-go/graphql"
+
 	"github.com/eientei/wsgraphql/v1/mutable"
 	"github.com/graphql-go/graphql/language/ast"
 )
@@ -12,7 +14,9 @@ type (
 	contextKeyRequestContextT      struct{}
 	contextKeyOperationContextT    struct{}
 	contextKeyOperationStoppedT    struct{}
+	contextKeyOperationExecutedT   struct{}
 	contextKeyOperationIDT         struct{}
+	contextKeyOperationParamsT     struct{}
 	contextKeyAstT                 struct{}
 	contextKeySubscriptionT        struct{}
 	contextKeyHTTPRequestT         struct{}
@@ -31,8 +35,14 @@ var (
 	// ContextKeyOperationStopped indicates the operation was stopped on client request
 	ContextKeyOperationStopped = contextKeyOperationStoppedT{}
 
+	// ContextKeyOperationExecuted indicates the operation was executed
+	ContextKeyOperationExecuted = contextKeyOperationExecutedT{}
+
 	// ContextKeyOperationID indicates the operation ID
 	ContextKeyOperationID = contextKeyOperationIDT{}
+
+	// ContextKeyOperationParams used to store operation params
+	ContextKeyOperationParams = contextKeyOperationParamsT{}
 
 	// ContextKeyAST used to store operation's ast.Document (abstract syntax tree)
 	ContextKeyAST = contextKeyAstT{}
@@ -114,6 +124,21 @@ func ContextOperationStopped(ctx context.Context) bool {
 	return res
 }
 
+// ContextOperationExecuted returns true if user requested operation stop
+func ContextOperationExecuted(ctx context.Context) bool {
+	v := ctx.Value(ContextKeyOperationExecuted)
+	if v == nil {
+		return false
+	}
+
+	res, ok := v.(bool)
+	if !ok {
+		return false
+	}
+
+	return res
+}
+
 // ContextOperationID returns operaion ID stored in the context
 func ContextOperationID(ctx context.Context) string {
 	v := ctx.Value(ContextKeyOperationID)
@@ -127,6 +152,21 @@ func ContextOperationID(ctx context.Context) string {
 	}
 
 	return res
+}
+
+// ContextOperationParams returns operation params stored in the context
+func ContextOperationParams(ctx context.Context) (res *graphql.Params) {
+	v := ctx.Value(ContextKeyOperationParams)
+	if v == nil {
+		return &graphql.Params{}
+	}
+
+	r, ok := v.(*graphql.Params)
+	if !ok || r == nil {
+		return &graphql.Params{}
+	}
+
+	return r
 }
 
 // ContextAST returns operation's abstract syntax tree document

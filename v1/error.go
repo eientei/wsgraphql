@@ -18,7 +18,8 @@ func wrapExtendedError(err error, loc []location.SourceLocation) error {
 	return err
 }
 
-func formatError(err error) gqlerrors.FormattedError {
+// FormatError returns error formatted as graphql error
+func FormatError(err error) gqlerrors.FormattedError {
 	var loc []location.SourceLocation
 
 	fmterr, ok := err.(gqlerrors.FormattedError)
