@@ -16,7 +16,7 @@ Inspired by [graphqlws](https://github.com/functionalfoundry/graphqlws)
 Key features:
 
 - Subscription support
-- Callbacks at every stage of communication process for easy customization 
+- Interceptors at every stage of communication process for easy customization 
 - Supports both websockets and plain http queries, with http chunked response for plain http subscriptions
 - [Mutable context](https://godoc.org/github.com/eientei/wsgraphql/v1/mutable) allowing to keep request-scoped 
   connection/authentication data and operation-scoped state

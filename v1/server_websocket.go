@@ -337,6 +337,19 @@ func (req *websocketRequest) readWebsocketPing(msg *apollows.Message) {
 	req.writeWebsocketMessage(req.ctx, apollows.OperationPong, msg.Payload.Value)
 }
 
+func (req *websocketRequest) backgroundTimeout(timeout time.Duration, connectSuccessful chan struct{}) {
+	timer := time.NewTimer(timeout)
+
+	select {
+	case <-timer.C:
+		req.handleError(req.ctx, apollows.EventInitializationTimeout)
+	case <-connectSuccessful:
+	case <-req.ctx.Done():
+	}
+
+	timer.Stop()
+}
+
 func (req *websocketRequest) readWebsocket() {
 	var err error
 
@@ -354,18 +367,12 @@ func (req *websocketRequest) readWebsocket() {
 		close(req.outgoing)
 	}()
 
-	var timer *time.Timer
+	var connectSuccessful chan struct{}
 
 	if req.server.connectTimeout > 0 {
-		timer = time.NewTimer(req.server.connectTimeout)
+		connectSuccessful = make(chan struct{})
 
-		go func() {
-			select {
-			case <-timer.C:
-				req.handleError(req.ctx, apollows.EventInitializationTimeout)
-			case <-req.ctx.Done():
-			}
-		}()
+		go req.backgroundTimeout(req.server.connectTimeout, connectSuccessful)
 	}
 
 	for {
@@ -386,11 +393,12 @@ func (req *websocketRequest) readWebsocket() {
 
 			req.init = true
 
-			err = req.readWebsocketInit(&msg)
-
-			if timer != nil {
-				timer.Stop()
+			if connectSuccessful != nil {
+				connectSuccessful <- struct{}{}
+				close(connectSuccessful)
 			}
+
+			err = req.readWebsocketInit(&msg)
 		case apollows.OperationStart, apollows.OperationSubscribe:
 			err = req.readWebsocketStart(&msg)
 		case apollows.OperationStop, apollows.OperationComplete:
