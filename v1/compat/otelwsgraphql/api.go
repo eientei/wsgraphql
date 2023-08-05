@@ -48,7 +48,9 @@ func NewOperationInterceptor(options ...OperationOption) wsgraphql.InterceptorOp
 		tracer := c.tracer
 
 		if tracer == nil {
-			if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
+			if c.tracerProvider != nil {
+				tracer = newTracer(c.tracerProvider)
+			} else if span := trace.SpanFromContext(ctx); span.SpanContext().IsValid() {
 				tracer = newTracer(span.TracerProvider())
 			} else {
 				tracer = newTracer(otel.GetTracerProvider())
@@ -90,6 +92,13 @@ type SpanASTAttributesResolver func(ctx context.Context, payload *apollows.Paylo
 func WithTracer(tracer trace.Tracer) OperationOption {
 	return optionFunc(func(c *operationConfig) {
 		c.tracer = tracer
+	})
+}
+
+// WithTracerProvider sets predefined tracer provider instance
+func WithTracerProvider(tracerProvider trace.TracerProvider) OperationOption {
+	return optionFunc(func(c *operationConfig) {
+		c.tracerProvider = tracerProvider
 	})
 }
 
@@ -179,6 +188,7 @@ type operationConfig struct {
 	nameResolver       SpanNameResolver
 	attributesResolver SpanAttributesResolver
 	tracer             trace.Tracer
+	tracerProvider     trace.TracerProvider
 	startSpanOptions   []trace.SpanStartOption
 }
 

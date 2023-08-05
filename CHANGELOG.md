@@ -1,3 +1,7 @@
+v1.5.1
+------
+- [otelwsgraphql] Allow specifying tracer provider
+
 v1.5.0
 ------
 - Added `WithInterceptors` option to allow context-based third-party instrumentation
