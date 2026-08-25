@@ -179,17 +179,17 @@ func testAstParseExtensions(
 		},
 		parseDidStartFn: func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
 			return ctx, func(error) {
-
+				// stub
 			}
 		},
 		validationDidStartFn: func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
 			return ctx, func([]gqlerrors.FormattedError) {
-
+				// stub
 			}
 		},
 		executionDidStartFn: func(ctx context.Context) (context.Context, graphql.ExecutionFinishFunc) {
 			return ctx, func(*graphql.Result) {
-
+				// stub
 			}
 		},
 		resolveFieldDidStartFn: func(
@@ -197,7 +197,7 @@ func testAstParseExtensions(
 			_ *graphql.ResolveInfo,
 		) (context.Context, graphql.ResolveFieldFinishFunc) {
 			return ctx, func(any, error) {
-
+				// stub
 			}
 		},
 	}
@@ -246,7 +246,9 @@ func TestASTParseExtensions(t *testing.T) {
 	opctx := mutable.NewMutableContext(context.Background())
 	opctx.Set(ContextKeyOperationContext, opctx)
 
-	err := testAstParseExtensions(t, opctx, func(*testExt) {})
+	err := testAstParseExtensions(t, opctx, func(*testExt) {
+		// stub
+	})
 
 	assert.Nil(t, err)
 	assert.False(t, ContextSubscription(opctx))
