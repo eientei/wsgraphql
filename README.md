@@ -1,5 +1,4 @@
 [![Go Doc Reference](https://godoc.org/github.com/eientei/wsgraphql/v1?status.svg)](https://godoc.org/github.com/eientei/wsgraphql/v1)
-[![Go Report Card](https://goreportcard.com/badge/github.com/eientei/wsgraphql)](https://goreportcard.com/report/github.com/eientei/wsgraphql)
 [![Maintainability](https://qlty.sh/gh/eientei/projects/wsgraphql/maintainability.svg)](https://qlty.sh/gh/eientei/projects/wsgraphql)
 [![Code Coverage](https://qlty.sh/gh/eientei/projects/wsgraphql/coverage.svg)](https://qlty.sh/gh/eientei/projects/wsgraphql)
 
