@@ -9,8 +9,8 @@ type Upgrader interface {
 
 // Conn interface is used to abstract connection returned from Upgrader
 type Conn interface {
-	ReadJSON(v interface{}) error
-	WriteJSON(v interface{}) error
+	ReadJSON(v any) error
+	WriteJSON(v any) error
 	Close(code int, message string) error
 	Subprotocol() string
 }

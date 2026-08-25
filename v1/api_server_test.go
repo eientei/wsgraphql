@@ -526,7 +526,7 @@ func TestWithoutHTTPQueries(t *testing.T) {
 func TestWithRootObject(t *testing.T) {
 	var c serverConfig
 
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 
 	assert.NoError(t, WithRootObject(obj)(&c))
 

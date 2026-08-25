@@ -97,7 +97,7 @@ func testNewServerWebsocketGWS(t *testing.T, srv *httptest.Server) {
 
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 0)
-	assert.EqualValues(t, map[string]interface{}{
+	assert.EqualValues(t, map[string]any{
 		"setFoo": true,
 	}, pd.Data)
 
@@ -129,7 +129,7 @@ func testNewServerWebsocketGWS(t *testing.T, srv *httptest.Server) {
 
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 0)
-	assert.EqualValues(t, map[string]interface{}{
+	assert.EqualValues(t, map[string]any{
 		"setFoo": false,
 	}, pd.Data)
 
@@ -270,7 +270,7 @@ func testNewServerWebsocketGWS(t *testing.T, srv *httptest.Server) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.EqualValues(t, nil, pd.Data["errors"])
-	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+	assert.EqualValues(t, map[string]any{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 
@@ -362,7 +362,7 @@ func testNewServerWebsocketGWTS(t *testing.T, srv *httptest.Server) {
 
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 0)
-	assert.EqualValues(t, map[string]interface{}{
+	assert.EqualValues(t, map[string]any{
 		"setFoo": true,
 	}, pd.Data)
 
@@ -394,7 +394,7 @@ func testNewServerWebsocketGWTS(t *testing.T, srv *httptest.Server) {
 
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 0)
-	assert.EqualValues(t, map[string]interface{}{
+	assert.EqualValues(t, map[string]any{
 		"setFoo": false,
 	}, pd.Data)
 
@@ -524,7 +524,7 @@ func testNewServerWebsocketGWTS(t *testing.T, srv *httptest.Server) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.EqualValues(t, nil, pd.Data["errors"])
-	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+	assert.EqualValues(t, map[string]any{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 
@@ -1183,7 +1183,7 @@ func TestNewServerWebsocketOperationErrorGWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.Contains(t, pd.Errors[0].Message, "someerr")
-	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+	assert.EqualValues(t, map[string]any{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 
@@ -1248,7 +1248,7 @@ func TestNewServerWebsocketOperationErrorGTWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pd.Errors, 1)
 	assert.Contains(t, pd.Errors[0].Message, "someerr")
-	assert.EqualValues(t, map[string]interface{}{"foo": "bar"}, pd.Errors[0].Extensions)
+	assert.EqualValues(t, map[string]any{"foo": "bar"}, pd.Errors[0].Extensions)
 
 	err = conn.ReadJSON(&msg)
 
@@ -1293,7 +1293,7 @@ func TestNewServerWebsocketPingGTWS(t *testing.T) {
 	err = conn.WriteJSON(apollows.Message{
 		Type: apollows.OperationPing,
 		Payload: apollows.Data{
-			Value: map[string]interface{}{
+			Value: map[string]any{
 				"foo": 123,
 			},
 		},
@@ -1306,7 +1306,7 @@ func TestNewServerWebsocketPingGTWS(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, apollows.OperationPong, msg.Type)
 
-	var m map[string]interface{}
+	var m map[string]any
 
 	err = json.Unmarshal(msg.Payload.RawMessage, &m)
 
@@ -1340,13 +1340,13 @@ func TestNewServerWebsocketCombineErrorsGWS(t *testing.T) {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
 				"getError": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return nil, errors.New("someerr")
 					},
 				},
@@ -1455,7 +1455,7 @@ func TestNewServerWebsocketHeaders(t *testing.T) {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},

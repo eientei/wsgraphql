@@ -20,7 +20,7 @@ func TestASTParse(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
@@ -64,7 +64,7 @@ func TestASTParseSubscription(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
@@ -77,7 +77,7 @@ func TestASTParseSubscription(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
@@ -115,7 +115,7 @@ func TestASTParseSubscription(t *testing.T) {
 type testExt struct {
 	initFn                 func(ctx context.Context, p *graphql.Params) context.Context
 	hasResultFn            func() bool
-	getResultFn            func(context.Context) interface{}
+	getResultFn            func(context.Context) any
 	parseDidStartFn        func(ctx context.Context) (context.Context, graphql.ParseFinishFunc)
 	validationDidStartFn   func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc)
 	executionDidStartFn    func(ctx context.Context) (context.Context, graphql.ExecutionFinishFunc)
@@ -138,7 +138,7 @@ func (t *testExt) HasResult() bool {
 	return t.hasResultFn()
 }
 
-func (t *testExt) GetResult(ctx context.Context) interface{} {
+func (t *testExt) GetResult(ctx context.Context) any {
 	return t.getResultFn(ctx)
 }
 
@@ -174,7 +174,7 @@ func testAstParseExtensions(
 		hasResultFn: func() bool {
 			return true
 		},
-		getResultFn: func(context.Context) interface{} {
+		getResultFn: func(context.Context) any {
 			return nil
 		},
 		parseDidStartFn: func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
@@ -196,7 +196,7 @@ func testAstParseExtensions(
 			ctx context.Context,
 			_ *graphql.ResolveInfo,
 		) (context.Context, graphql.ResolveFieldFinishFunc) {
-			return ctx, func(interface{}, error) {
+			return ctx, func(any, error) {
 
 			}
 		},
@@ -212,7 +212,7 @@ func testAstParseExtensions(
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},

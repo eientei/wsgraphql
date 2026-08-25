@@ -22,7 +22,7 @@ type serverConfig struct {
 	upgrader              Upgrader
 	interceptors          Interceptors
 	resultProcessor       ResultProcessor
-	rootObject            map[string]interface{}
+	rootObject            map[string]any
 	subscriptionProtocols map[apollows.Protocol]struct{}
 	keepalive             time.Duration
 	connectTimeout        time.Duration

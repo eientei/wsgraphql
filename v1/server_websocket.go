@@ -3,6 +3,7 @@ package wsgraphql
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -125,14 +126,12 @@ func combineErrors(errs []gqlerrors.FormattedError) gqlerrors.FormattedError {
 
 	var errmsgs []string
 
-	combinedext := make(map[string]interface{})
+	combinedext := make(map[string]any)
 
 	for _, err := range errs {
 		fmterr := FormatError(err)
 
-		for k, v := range fmterr.Extensions {
-			combinedext[k] = v
-		}
+		maps.Copy(combinedext, fmterr.Extensions)
 
 		errmsgs = append(errmsgs, fmterr.Error())
 	}
@@ -202,7 +201,7 @@ func (req *websocketRequest) writeWebsocketData(ctx context.Context, data *graph
 	req.writeWebsocketMessage(ctx, t, data)
 }
 
-func (req *websocketRequest) writeWebsocketMessage(ctx context.Context, t apollows.Operation, data interface{}) {
+func (req *websocketRequest) writeWebsocketMessage(ctx context.Context, t apollows.Operation, data any) {
 	if t == apollows.OperationError {
 		OperationContext(ctx).Set(ContextKeyOperationStopped, true)
 	}
@@ -267,9 +266,7 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err erro
 	req.operations[msg.ID] = opctx
 	req.m.Unlock()
 
-	req.wg.Add(1)
-
-	go func() {
+	req.wg.Go(func() {
 		var payload apollows.PayloadOperation
 
 		operr := json.Unmarshal(msg.Payload.RawMessage, &payload)
@@ -295,9 +292,7 @@ func (req *websocketRequest) readWebsocketStart(msg *apollows.Message) (err erro
 		req.m.Lock()
 		delete(req.operations, msg.ID)
 		req.m.Unlock()
-
-		req.wg.Done()
-	}()
+	})
 
 	return
 }

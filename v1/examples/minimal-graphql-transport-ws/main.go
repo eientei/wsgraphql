@@ -24,7 +24,7 @@ func main() {
 				"getFoo": &graphql.Field{
 					Description: "Returns most recent foo value",
 					Type:        graphql.NewNonNull(graphql.Int),
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},

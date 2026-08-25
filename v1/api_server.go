@@ -161,7 +161,7 @@ func WithConnectTimeout(timeout time.Duration) ServerOption {
 }
 
 // WithRootObject provides root object that will be used in root resolvers
-func WithRootObject(rootObject map[string]interface{}) ServerOption {
+func WithRootObject(rootObject map[string]any) ServerOption {
 	return func(config *serverConfig) error {
 		config.rootObject = rootObject
 

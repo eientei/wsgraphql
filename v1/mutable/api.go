@@ -9,18 +9,18 @@ import (
 // Context interface, provides additional Set method to change values of the context after creation
 type Context interface {
 	context.Context
-	Set(key, value interface{})
+	Set(key, value any)
 	Cancel()
 }
 
 type mutableContext struct {
 	context.Context
-	values map[interface{}]interface{}
+	values map[any]any
 	cancel context.CancelFunc
 	mutex  sync.RWMutex
 }
 
-func (mctx *mutableContext) Set(key, value interface{}) {
+func (mctx *mutableContext) Set(key, value any) {
 	mctx.mutex.Lock()
 
 	mctx.values[key] = value
@@ -28,7 +28,7 @@ func (mctx *mutableContext) Set(key, value interface{}) {
 	mctx.mutex.Unlock()
 }
 
-func (mctx *mutableContext) Value(key interface{}) (res interface{}) {
+func (mctx *mutableContext) Value(key any) (res any) {
 	var ok bool
 
 	mctx.mutex.RLock()
@@ -54,7 +54,7 @@ func NewMutableContext(parent context.Context) Context {
 
 	return &mutableContext{
 		Context: ctx,
-		values:  make(map[interface{}]interface{}),
+		values:  make(map[any]any),
 		cancel:  cancel,
 	}
 }

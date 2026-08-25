@@ -45,10 +45,10 @@ func (g testWrapper) Upgrade(w http.ResponseWriter, r *http.Request, responseHea
 
 type extendedError struct {
 	error
-	extensions map[string]interface{}
+	extensions map[string]any
 }
 
-func (ext *extendedError) Extensions() map[string]interface{} {
+func (ext *extendedError) Extensions() map[string]any {
 	return ext.extensions
 }
 
@@ -60,16 +60,16 @@ func testNewSchema(t *testing.T) graphql.Schema {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return 123, nil
 					},
 				},
 				"getError": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (any, error) {
 						return nil, &extendedError{
 							error:      errors.New("someerr"),
-							extensions: map[string]interface{}{"foo": "bar"},
+							extensions: map[string]any{"foo": "bar"},
 						}
 					},
 				},
@@ -86,7 +86,7 @@ func testNewSchema(t *testing.T) graphql.Schema {
 						},
 					},
 					Type: graphql.Boolean,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(p graphql.ResolveParams) (any, error) {
 						_, ok := p.Args["value"].(int)
 
 						return ok, nil
@@ -100,11 +100,11 @@ func testNewSchema(t *testing.T) graphql.Schema {
 			Fields: graphql.Fields{
 				"fooUpdates": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(p graphql.ResolveParams) (any, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
-						ch := make(chan interface{}, 3)
+					Subscribe: func(graphql.ResolveParams) (any, error) {
+						ch := make(chan any, 3)
 
 						ch <- 1
 
@@ -119,24 +119,24 @@ func testNewSchema(t *testing.T) graphql.Schema {
 				},
 				"forever": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(p graphql.ResolveParams) (any, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
-						ch := make(chan interface{})
+					Subscribe: func(graphql.ResolveParams) (any, error) {
+						ch := make(chan any)
 
 						return ch, nil
 					},
 				},
 				"errors": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(p graphql.ResolveParams) (any, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (any, error) {
 						return nil, &extendedError{
 							error:      errors.New("someerr"),
-							extensions: map[string]interface{}{"foo": "bar"},
+							extensions: map[string]any{"foo": "bar"},
 						}
 					},
 				},

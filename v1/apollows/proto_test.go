@@ -47,7 +47,7 @@ func TestDataReadPayloadData(t *testing.T) {
 	data := Data{
 		Value: PayloadData{
 			Data: Data{
-				Value: map[string]interface{}{
+				Value: map[string]any{
 					"foo": "123",
 				},
 			},

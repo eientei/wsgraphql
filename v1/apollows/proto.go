@@ -191,9 +191,9 @@ func (m MessageType) Error() string {
 }
 
 // Data encapsulates both client and server json payload, combining json.RawMessage for decoding and
-// arbitrary interface{} type for encoding
+// arbitrary any type for encoding
 type Data struct {
-	Value interface{}
+	Value any
 	json.RawMessage
 }
 
@@ -273,14 +273,14 @@ func (payload Data) MarshalJSON() (bs []byte, err error) {
 }
 
 // PayloadInit provides connection params
-type PayloadInit map[string]interface{}
+type PayloadInit map[string]any
 
 // PayloadOperation provides description for client-side operation initiation
 type PayloadOperation struct {
-	Variables     map[string]interface{} `json:"variables"`
-	Extensions    map[string]interface{} `json:"extensions"`
-	Query         string                 `json:"query"`
-	OperationName string                 `json:"operationName"`
+	Variables     map[string]any `json:"variables"`
+	Extensions    map[string]any `json:"extensions"`
+	Query         string         `json:"query"`
+	OperationName string         `json:"operationName"`
 }
 
 // PayloadDataRaw provides server-side response for previously started operation
@@ -314,7 +314,7 @@ type PayloadErrorLocation struct {
 
 // PayloadError client-side error representation
 type PayloadError struct {
-	Extensions map[string]interface{} `json:"extensions"`
+	Extensions map[string]any         `json:"extensions"`
 	Message    string                 `json:"message"`
 	Locations  []PayloadErrorLocation `json:"locations"`
 	Path       []string               `json:"path"`
@@ -322,8 +322,8 @@ type PayloadError struct {
 
 // PayloadDataResponse provides client-side payload representation
 type PayloadDataResponse struct {
-	Data   map[string]interface{} `json:"data,omitempty"`
-	Errors []PayloadError         `json:"errors,omitempty"`
+	Data   map[string]any `json:"data,omitempty"`
+	Errors []PayloadError `json:"errors,omitempty"`
 }
 
 // MessageRaw encapsulates every message within apollows protocol in both directions
