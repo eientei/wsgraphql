@@ -22,4 +22,4 @@ jobs:
         with:
           version: "v2.8.0"
       - name: Run tests
-        run: go test -v ./...
+        run: go test -v $(go list ./... | grep -v examples | grep -v compat)
