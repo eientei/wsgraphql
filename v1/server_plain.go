@@ -49,6 +49,7 @@ func (server *serverImpl) operationExecute(
 			Args:          payload.Variables,
 			Context:       ctx,
 		})
+
 		close(cres)
 	}
 
@@ -107,7 +108,7 @@ func (server *serverImpl) servePlainRequest(reqctx context.Context) (err error) 
 		return errHTTPQueryRejected
 	}
 
-	err = server.interceptors.Init(reqctx, nil, func(nctx context.Context, init apollows.PayloadInit) error {
+	err = server.interceptors.Init(reqctx, nil, func(nctx context.Context, _ apollows.PayloadInit) error {
 		reqctx = nctx
 
 		return nil

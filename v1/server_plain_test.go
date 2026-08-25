@@ -114,6 +114,7 @@ func TestNewServerPlain(t *testing.T) {
 
 			assert.Len(t, pd.Errors, 0)
 			assert.EqualValues(t, idx, pd.Data["fooUpdates"])
+
 			idx++
 		}
 	}

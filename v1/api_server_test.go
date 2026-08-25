@@ -26,10 +26,10 @@ func TestWithCallbacksOnRequest(t *testing.T) {
 	target := errors.New("123")
 
 	assert.NoError(t, WithCallbacks(Callbacks{
-		OnRequest: func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter) error {
+		OnRequest: func(mutable.Context, *http.Request, http.ResponseWriter) error {
 			return target
 		},
-		OnRequestDone: func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter, origerr error) {
+		OnRequestDone: func(_ mutable.Context, _ *http.Request, _ http.ResponseWriter, origerr error) {
 			encountered = origerr
 		},
 		OnConnect:             nil,
@@ -48,7 +48,7 @@ func TestWithCallbacksOnRequest(t *testing.T) {
 		opctx,
 		w,
 		r,
-		func(reqctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		func(context.Context, http.ResponseWriter, *http.Request) error {
 			return nil
 		},
 	)
@@ -67,7 +67,7 @@ func TestWithCallbacksOnRequestHandler(t *testing.T) {
 
 	assert.NoError(t, WithCallbacks(Callbacks{
 		OnRequest: nil,
-		OnRequestDone: func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter, origerr error) {
+		OnRequestDone: func(_ mutable.Context, _ *http.Request, _ http.ResponseWriter, origerr error) {
 			encountered = origerr
 		},
 		OnConnect:             nil,
@@ -86,7 +86,7 @@ func TestWithCallbacksOnRequestHandler(t *testing.T) {
 		opctx,
 		w,
 		r,
-		func(reqctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		func(context.Context, http.ResponseWriter, *http.Request) error {
 			return target
 		},
 	)
@@ -106,10 +106,10 @@ func TestWithCallbacksOnConnect(t *testing.T) {
 	assert.NoError(t, WithCallbacks(Callbacks{
 		OnRequest:     nil,
 		OnRequestDone: nil,
-		OnConnect: func(reqctx mutable.Context, init apollows.PayloadInit) error {
+		OnConnect: func(mutable.Context, apollows.PayloadInit) error {
 			return target
 		},
-		OnDisconnect: func(reqctx mutable.Context, origerr error) error {
+		OnDisconnect: func(_ mutable.Context, origerr error) error {
 			encountered = origerr
 
 			return origerr
@@ -123,7 +123,7 @@ func TestWithCallbacksOnConnect(t *testing.T) {
 	assert.Equal(t, target, c.interceptors.Init(
 		opctx,
 		nil,
-		func(ctx context.Context, init apollows.PayloadInit) error {
+		func(context.Context, apollows.PayloadInit) error {
 			return nil
 		},
 	))
@@ -144,7 +144,7 @@ func TestWithCallbacksOnConnectHandler(t *testing.T) {
 		OnRequest:     nil,
 		OnRequestDone: nil,
 		OnConnect:     nil,
-		OnDisconnect: func(reqctx mutable.Context, origerr error) error {
+		OnDisconnect: func(_ mutable.Context, origerr error) error {
 			encountered = origerr
 
 			return origerr
@@ -158,7 +158,7 @@ func TestWithCallbacksOnConnectHandler(t *testing.T) {
 	assert.Equal(t, target, c.interceptors.Init(
 		opctx,
 		nil,
-		func(ctx context.Context, init apollows.PayloadInit) error {
+		func(context.Context, apollows.PayloadInit) error {
 			return target
 		},
 	))
@@ -180,12 +180,12 @@ func TestWithCallbacksOnOperation(t *testing.T) {
 		OnRequestDone: nil,
 		OnConnect:     nil,
 		OnDisconnect:  nil,
-		OnOperation: func(opctx mutable.Context, payload *apollows.PayloadOperation) error {
+		OnOperation: func(mutable.Context, *apollows.PayloadOperation) error {
 			return target
 		},
 		OnOperationValidation: nil,
 		OnOperationResult:     nil,
-		OnOperationDone: func(opctx mutable.Context, payload *apollows.PayloadOperation, origerr error) error {
+		OnOperationDone: func(_ mutable.Context, _ *apollows.PayloadOperation, origerr error) error {
 			encountered = origerr
 
 			return origerr
@@ -195,7 +195,7 @@ func TestWithCallbacksOnOperation(t *testing.T) {
 	assert.Equal(t, target, c.interceptors.Operation(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) error {
+		func(context.Context, *apollows.PayloadOperation) error {
 			return nil
 		},
 	))
@@ -220,7 +220,7 @@ func TestWithCallbacksOnOperationHandler(t *testing.T) {
 		OnOperation:           nil,
 		OnOperationValidation: nil,
 		OnOperationResult:     nil,
-		OnOperationDone: func(opctx mutable.Context, payload *apollows.PayloadOperation, origerr error) error {
+		OnOperationDone: func(_ mutable.Context, _ *apollows.PayloadOperation, origerr error) error {
 			encountered = origerr
 
 			return origerr
@@ -230,7 +230,7 @@ func TestWithCallbacksOnOperationHandler(t *testing.T) {
 	assert.Equal(t, target, c.interceptors.Operation(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) error {
+		func(context.Context, *apollows.PayloadOperation) error {
 			return target
 		},
 	))
@@ -251,11 +251,7 @@ func TestWithCallbacksOnOperationValidation(t *testing.T) {
 		OnConnect:     nil,
 		OnDisconnect:  nil,
 		OnOperation:   nil,
-		OnOperationValidation: func(
-			opctx mutable.Context,
-			payload *apollows.PayloadOperation,
-			result *graphql.Result,
-		) error {
+		OnOperationValidation: func(mutable.Context, *apollows.PayloadOperation, *graphql.Result) error {
 			return target
 		},
 		OnOperationResult: nil,
@@ -265,7 +261,7 @@ func TestWithCallbacksOnOperationValidation(t *testing.T) {
 	assert.Equal(t, target, c.interceptors.OperationParse(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) error {
+		func(context.Context, *apollows.PayloadOperation) error {
 			return nil
 		},
 	))
@@ -285,11 +281,7 @@ func TestWithCallbacksOnOperationExecution(t *testing.T) {
 		OnDisconnect:          nil,
 		OnOperation:           nil,
 		OnOperationValidation: nil,
-		OnOperationResult: func(
-			opctx mutable.Context,
-			payload *apollows.PayloadOperation,
-			result *graphql.Result,
-		) error {
+		OnOperationResult: func(mutable.Context, *apollows.PayloadOperation, *graphql.Result) error {
 			return target
 		},
 		OnOperationDone: nil,
@@ -298,10 +290,11 @@ func TestWithCallbacksOnOperationExecution(t *testing.T) {
 	ch, err := c.interceptors.OperationExecute(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) (chan *graphql.Result, error) {
+		func(context.Context, *apollows.PayloadOperation) (chan *graphql.Result, error) {
 			tch := make(chan *graphql.Result, 1)
 
 			tch <- &graphql.Result{}
+
 			close(tch)
 
 			return tch, nil
@@ -330,11 +323,7 @@ func TestWithCallbacksOnOperationProcess(t *testing.T) {
 		OnDisconnect:          nil,
 		OnOperation:           nil,
 		OnOperationValidation: nil,
-		OnOperationResult: func(
-			opctx mutable.Context,
-			payload *apollows.PayloadOperation,
-			result *graphql.Result,
-		) error {
+		OnOperationResult: func(_ mutable.Context, _ *apollows.PayloadOperation, result *graphql.Result) error {
 			result.Data = target
 
 			return nil
@@ -345,10 +334,11 @@ func TestWithCallbacksOnOperationProcess(t *testing.T) {
 	ch, err := c.interceptors.OperationExecute(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) (chan *graphql.Result, error) {
+		func(context.Context, *apollows.PayloadOperation) (chan *graphql.Result, error) {
 			tch := make(chan *graphql.Result, 1)
 
 			tch <- &graphql.Result{}
+
 			close(tch)
 
 			return tch, nil
@@ -384,7 +374,7 @@ func TestWithCallbacksOnOperationExecutionHandler(t *testing.T) {
 	ch, err := c.interceptors.OperationExecute(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) (chan *graphql.Result, error) {
+		func(context.Context, *apollows.PayloadOperation) (chan *graphql.Result, error) {
 			return nil, target
 		},
 	)
@@ -402,13 +392,19 @@ func TestWithInterceptorChain(t *testing.T) {
 
 	key := keyT{}
 
+	intctx := func(ctx context.Context) int {
+		r, _ := ctx.Value(key).(int)
+
+		return r
+	}
+
 	assert.NoError(t, WithInterceptors(Interceptors{
 		HTTPRequest: InterceptorHTTPRequestChain(
 			func(ctx context.Context, w http.ResponseWriter, r *http.Request, handler HandlerHTTPRequest) error {
 				return handler(context.WithValue(ctx, key, 1), w, r)
 			},
 			func(ctx context.Context, w http.ResponseWriter, r *http.Request, handler HandlerHTTPRequest) error {
-				return handler(context.WithValue(ctx, key, ctx.Value(key).(int)+1), w, r)
+				return handler(context.WithValue(ctx, key, intctx(ctx)+1), w, r)
 			},
 		),
 		Init: InterceptorInitChain(
@@ -416,7 +412,7 @@ func TestWithInterceptorChain(t *testing.T) {
 				return handler(context.WithValue(ctx, key, 2), init)
 			},
 			func(ctx context.Context, init apollows.PayloadInit, handler HandlerInit) error {
-				return handler(context.WithValue(ctx, key, ctx.Value(key).(int)+1), init)
+				return handler(context.WithValue(ctx, key, intctx(ctx)+1), init)
 			},
 		),
 		Operation: InterceptorOperationChain(
@@ -424,7 +420,7 @@ func TestWithInterceptorChain(t *testing.T) {
 				return handler(context.WithValue(ctx, key, 3), payload)
 			},
 			func(ctx context.Context, payload *apollows.PayloadOperation, handler HandlerOperation) error {
-				return handler(context.WithValue(ctx, key, ctx.Value(key).(int)+1), payload)
+				return handler(context.WithValue(ctx, key, intctx(ctx)+1), payload)
 			},
 		),
 		OperationParse: InterceptorOperationParseChain(
@@ -432,7 +428,7 @@ func TestWithInterceptorChain(t *testing.T) {
 				return handler(context.WithValue(ctx, key, 4), payload)
 			},
 			func(ctx context.Context, payload *apollows.PayloadOperation, handler HandlerOperationParse) error {
-				return handler(context.WithValue(ctx, key, ctx.Value(key).(int)+1), payload)
+				return handler(context.WithValue(ctx, key, intctx(ctx)+1), payload)
 			},
 		),
 		OperationExecute: InterceptorOperationExecuteChain(
@@ -448,7 +444,7 @@ func TestWithInterceptorChain(t *testing.T) {
 				payload *apollows.PayloadOperation,
 				handler HandlerOperationExecute,
 			) (chan *graphql.Result, error) {
-				return handler(context.WithValue(ctx, key, ctx.Value(key).(int)+1), payload)
+				return handler(context.WithValue(ctx, key, intctx(ctx)+1), payload)
 			},
 		),
 	})(&c))
@@ -461,8 +457,8 @@ func TestWithInterceptorChain(t *testing.T) {
 		opctx,
 		httptest.NewRecorder(),
 		r,
-		func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-			res = append(res, ctx.Value(key).(int))
+		func(ctx context.Context, _ http.ResponseWriter, _ *http.Request) error {
+			res = append(res, intctx(ctx))
 
 			return nil
 		},
@@ -471,8 +467,8 @@ func TestWithInterceptorChain(t *testing.T) {
 	_ = c.interceptors.Init(
 		opctx,
 		nil,
-		func(ctx context.Context, init apollows.PayloadInit) error {
-			res = append(res, ctx.Value(key).(int))
+		func(ctx context.Context, _ apollows.PayloadInit) error {
+			res = append(res, intctx(ctx))
 
 			return nil
 		},
@@ -481,8 +477,8 @@ func TestWithInterceptorChain(t *testing.T) {
 	_ = c.interceptors.Operation(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) error {
-			res = append(res, ctx.Value(key).(int))
+		func(ctx context.Context, _ *apollows.PayloadOperation) error {
+			res = append(res, intctx(ctx))
 
 			return nil
 		},
@@ -491,8 +487,8 @@ func TestWithInterceptorChain(t *testing.T) {
 	_ = c.interceptors.OperationParse(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) error {
-			res = append(res, ctx.Value(key).(int))
+		func(ctx context.Context, _ *apollows.PayloadOperation) error {
+			res = append(res, intctx(ctx))
 
 			return nil
 		},
@@ -501,8 +497,8 @@ func TestWithInterceptorChain(t *testing.T) {
 	_, _ = c.interceptors.OperationExecute(
 		opctx,
 		nil,
-		func(ctx context.Context, payload *apollows.PayloadOperation) (chan *graphql.Result, error) {
-			res = append(res, ctx.Value(key).(int))
+		func(ctx context.Context, _ *apollows.PayloadOperation) (chan *graphql.Result, error) {
+			res = append(res, intctx(ctx))
 
 			return nil, nil
 		},
@@ -580,7 +576,7 @@ func TestWriteErrorResponseStarted(t *testing.T) {
 }
 
 func TestOptError(t *testing.T) {
-	srv, err := NewServer(testNewSchema(t), func(config *serverConfig) error {
+	srv, err := NewServer(testNewSchema(t), func(*serverConfig) error {
 		return errors.New("123")
 	})
 

@@ -1,71 +1,76 @@
+version: "2"
 run:
   concurrency: 4
-  timeout: 1m
   issues-exit-code: 1
   tests: true
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-  uniq-by-line: true
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-  gocognit:
-    min-complexity: 25
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  gocyclo:
-    min-complexity: 15
-  gofmt:
-    simplify: true
-  revive:
-    min-confidence: 0.8
-  govet:
-    check-shadowing: true
-    enable-all: true
-  lll:
-    line-length: 120
-    tab-width: 1
-  wsl:
-    strict-append: true
-    allow-assign-and-call: true
-    allow-multiline-assign: true
-    allow-cuddle-declarations: false
-    allow-trailing-comment: false
-    force-case-trailing-whitespace: 0
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - govet
-    - errcheck
-    - unused
-    - gosimple
-    - ineffassign
-    - typecheck
     - bodyclose
-    - stylecheck
-    - revive
-    - unconvert
-    - goconst
-    - gocyclo
+    - errcheck
     - gocognit
-    - gofmt
-    - goimports
-    - godox
-    - lll
-    - unparam
+    - goconst
     - gocritic
-    - wsl
+    - gocyclo
+    - godox
     - goprintffuncname
+    - govet
+    - ineffassign
+    - lll
+    - modernize
+    - nolintlint
+    - perfsprint
+    - revive
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
     - whitespace
-
+    - wsl_v5
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    gocognit:
+      min-complexity: 25
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocyclo:
+      min-complexity: 15
+    govet:
+      enable-all: true
+    lll:
+      line-length: 120
+      tab-width: 1
+    wsl:
+      strict-append: true
+      allow-assign-and-call: true
+      allow-multiline-assign: true
+      force-case-trailing-whitespace: 0
+      allow-trailing-comment: false
+      allow-cuddle-declarations: false
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

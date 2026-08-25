@@ -20,7 +20,7 @@ func TestASTParse(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
@@ -64,7 +64,7 @@ func TestASTParseSubscription(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
@@ -77,7 +77,7 @@ func TestASTParseSubscription(t *testing.T) {
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Subscribe: func(p graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
@@ -168,35 +168,35 @@ func testAstParseExtensions(
 ) (err error) {
 	text := &testExt{
 		name: "foo",
-		initFn: func(ctx context.Context, p *graphql.Params) context.Context {
+		initFn: func(ctx context.Context, _ *graphql.Params) context.Context {
 			return ctx
 		},
 		hasResultFn: func() bool {
 			return true
 		},
-		getResultFn: func(ctx context.Context) interface{} {
+		getResultFn: func(context.Context) interface{} {
 			return nil
 		},
 		parseDidStartFn: func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
-			return ctx, func(err error) {
+			return ctx, func(error) {
 
 			}
 		},
 		validationDidStartFn: func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
-			return ctx, func(errors []gqlerrors.FormattedError) {
+			return ctx, func([]gqlerrors.FormattedError) {
 
 			}
 		},
 		executionDidStartFn: func(ctx context.Context) (context.Context, graphql.ExecutionFinishFunc) {
-			return ctx, func(result *graphql.Result) {
+			return ctx, func(*graphql.Result) {
 
 			}
 		},
 		resolveFieldDidStartFn: func(
 			ctx context.Context,
-			i *graphql.ResolveInfo,
+			_ *graphql.ResolveInfo,
 		) (context.Context, graphql.ResolveFieldFinishFunc) {
-			return ctx, func(i interface{}, err error) {
+			return ctx, func(interface{}, error) {
 
 			}
 		},
@@ -212,7 +212,7 @@ func testAstParseExtensions(
 				"foo": &graphql.Field{
 					Name: "FooType",
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
@@ -246,9 +246,7 @@ func TestASTParseExtensions(t *testing.T) {
 	opctx := mutable.NewMutableContext(context.Background())
 	opctx.Set(ContextKeyOperationContext, opctx)
 
-	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
-
-	})
+	err := testAstParseExtensions(t, opctx, func(*testExt) {})
 
 	assert.Nil(t, err)
 	assert.False(t, ContextSubscription(opctx))
@@ -261,7 +259,7 @@ func TestASTParseExtensionsPanicInit(t *testing.T) {
 	opctx.Set(ContextKeyOperationContext, opctx)
 
 	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
-		ext.initFn = func(ctx context.Context, p *graphql.Params) context.Context {
+		ext.initFn = func(context.Context, *graphql.Params) context.Context {
 			panic(1)
 		}
 	})
@@ -277,7 +275,7 @@ func TestASTParseExtensionsPanicValidation(t *testing.T) {
 	opctx.Set(ContextKeyOperationContext, opctx)
 
 	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
-		ext.validationDidStartFn = func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
+		ext.validationDidStartFn = func(context.Context) (context.Context, graphql.ValidationFinishFunc) {
 			panic(1)
 		}
 	})
@@ -294,7 +292,7 @@ func TestASTParseExtensionsPanicValidationCb(t *testing.T) {
 
 	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.validationDidStartFn = func(ctx context.Context) (context.Context, graphql.ValidationFinishFunc) {
-			return ctx, func(errors []gqlerrors.FormattedError) {
+			return ctx, func([]gqlerrors.FormattedError) {
 				panic(1)
 			}
 		}
@@ -311,7 +309,7 @@ func TestASTParseExtensionsPanicParse(t *testing.T) {
 	opctx.Set(ContextKeyOperationContext, opctx)
 
 	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
-		ext.parseDidStartFn = func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
+		ext.parseDidStartFn = func(context.Context) (context.Context, graphql.ParseFinishFunc) {
 			panic(1)
 		}
 	})
@@ -328,7 +326,7 @@ func TestASTParseExtensionsPanicParseCb(t *testing.T) {
 
 	err := testAstParseExtensions(t, opctx, func(ext *testExt) {
 		ext.parseDidStartFn = func(ctx context.Context) (context.Context, graphql.ParseFinishFunc) {
-			return ctx, func(err error) {
+			return ctx, func(error) {
 				panic(1)
 			}
 		}

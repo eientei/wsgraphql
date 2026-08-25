@@ -18,7 +18,7 @@ type conn struct {
 }
 
 func (conn conn) Close(code int, message string) error {
-	origerr := conn.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
+	origerr := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
 
 	err := conn.Conn.Close()
 	if err == nil {

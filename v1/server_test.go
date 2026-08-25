@@ -21,7 +21,7 @@ type testConn struct {
 }
 
 func (conn testConn) Close(code int, message string) error {
-	origerr := conn.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
+	origerr := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, message))
 
 	err := conn.Conn.Close()
 	if err == nil {
@@ -60,13 +60,13 @@ func testNewSchema(t *testing.T) graphql.Schema {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
 				"getError": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return nil, &extendedError{
 							error:      errors.New("someerr"),
 							extensions: map[string]interface{}{"foo": "bar"},
@@ -103,11 +103,13 @@ func testNewSchema(t *testing.T) graphql.Schema {
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(p graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
 						ch := make(chan interface{}, 3)
 
 						ch <- 1
+
 						ch <- 2
+
 						ch <- 3
 
 						close(ch)
@@ -120,7 +122,7 @@ func testNewSchema(t *testing.T) graphql.Schema {
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(p graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
 						ch := make(chan interface{})
 
 						return ch, nil
@@ -131,7 +133,7 @@ func testNewSchema(t *testing.T) graphql.Schema {
 					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 						return p.Source, nil
 					},
-					Subscribe: func(p graphql.ResolveParams) (interface{}, error) {
+					Subscribe: func(graphql.ResolveParams) (interface{}, error) {
 						return nil, &extendedError{
 							error:      errors.New("someerr"),
 							extensions: map[string]interface{}{"foo": "bar"},
@@ -161,7 +163,7 @@ func testNewServerProtocols(t *testing.T, protocols []apollows.Protocol, opts ..
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			Subprotocols:    strprotocols,
-			CheckOrigin: func(r *http.Request) bool {
+			CheckOrigin: func(*http.Request) bool {
 				return true
 			},
 		},

@@ -10,6 +10,7 @@ import (
 )
 
 // WithCallbacks option sets callbacks handling various stages of requests
+//
 // Deprecated: use WithInterceptors / WithResultProcessor
 func WithCallbacks(callbacks Callbacks) ServerOption {
 	return WithExtraInterceptors(Interceptors{
@@ -28,6 +29,7 @@ func WithCallbacks(callbacks Callbacks) ServerOption {
 // OnRequest -> OnConnect ->
 // [ OnOperation -> OnOperationValidation -> OnOperationResult -> OnOperationDone ]* ->
 // OnDisconnect -> OnRequestDone
+//
 // Deprecated: use Interceptors / ResultProcessor
 type Callbacks struct {
 	// OnRequest called once HTTP request is received, before attempting to do websocket upgrade or plain request

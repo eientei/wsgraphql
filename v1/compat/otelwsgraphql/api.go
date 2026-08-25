@@ -65,7 +65,6 @@ func NewOperationInterceptor(options ...OperationOption) wsgraphql.InterceptorOp
 		ctx, span := tracer.Start(ctx, c.nameResolver(ctx, payload), opts...)
 
 		err := handler(ctx, payload)
-
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())

@@ -1,3 +1,4 @@
+// Package main provides minimal example of graphqlws usage using graphql-ws protocol
 package main
 
 import (
@@ -23,7 +24,7 @@ func main() {
 				"getFoo": &graphql.Field{
 					Description: "Returns most recent foo value",
 					Type:        graphql.NewNonNull(graphql.Int),
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},

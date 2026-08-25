@@ -3,7 +3,7 @@ module github.com/eientei/wsgraphql
 go 1.17
 
 require (
-	github.com/gorilla/websocket v1.5.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/graphql-go/graphql v0.8.1
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/otel v1.16.0

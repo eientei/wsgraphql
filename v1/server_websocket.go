@@ -102,7 +102,7 @@ func (server *serverImpl) serveWebsocketRequest(
 			case msg.Message != nil:
 				err = ws.WriteJSON(msg.Message)
 			case msg.Error != nil:
-				err = ws.Close(int(msg.Error.EventMessageType()), msg.Error.Error())
+				err = ws.Close(int(msg.EventMessageType()), msg.Error.Error())
 			}
 		case <-tickerch:
 			err = ws.WriteJSON(&apollows.Message{
@@ -172,11 +172,11 @@ func (req *websocketRequest) handleError(ctx context.Context, err error) {
 	res, ok := err.(ResultError)
 
 	if ok {
-		switch {
-		case req.protocol == apollows.WebsocketSubprotocolGraphqlWS:
-			req.writeWebsocketMessage(ctx, apollows.OperationError, combineErrors(res.Result.Errors))
+		switch req.protocol {
+		case apollows.WebsocketSubprotocolGraphqlWS:
+			req.writeWebsocketMessage(ctx, apollows.OperationError, combineErrors(res.Errors))
 		default:
-			req.writeWebsocketMessage(ctx, apollows.OperationError, res.Result.Errors)
+			req.writeWebsocketMessage(ctx, apollows.OperationError, res.Errors)
 		}
 
 		return
@@ -395,6 +395,7 @@ func (req *websocketRequest) readWebsocket() {
 
 			if connectSuccessful != nil {
 				connectSuccessful <- struct{}{}
+
 				close(connectSuccessful)
 			}
 

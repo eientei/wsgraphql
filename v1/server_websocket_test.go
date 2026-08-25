@@ -1325,7 +1325,7 @@ func TestNewServerWebsocketCombineErrorsGWS(t *testing.T) {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			Subprotocols:    []string{apollows.WebsocketSubprotocolGraphqlWS.String()},
-			CheckOrigin: func(r *http.Request) bool {
+			CheckOrigin: func(*http.Request) bool {
 				return true
 			},
 		},
@@ -1340,13 +1340,13 @@ func TestNewServerWebsocketCombineErrorsGWS(t *testing.T) {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
 				"getError": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return nil, errors.New("someerr")
 					},
 				},
@@ -1430,7 +1430,7 @@ func TestNewServerWebsocketHeaders(t *testing.T) {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 			Subprotocols:    []string{apollows.WebsocketSubprotocolGraphqlWS.String()},
-			CheckOrigin: func(r *http.Request) bool {
+			CheckOrigin: func(*http.Request) bool {
 				return true
 			},
 		},
@@ -1440,7 +1440,7 @@ func TestNewServerWebsocketHeaders(t *testing.T) {
 		opts,
 		WithProtocol(apollows.WebsocketSubprotocolGraphqlWS),
 		WithCallbacks(Callbacks{
-			OnRequest: func(reqctx mutable.Context, r *http.Request, w http.ResponseWriter) error {
+			OnRequest: func(_ mutable.Context, _ *http.Request, w http.ResponseWriter) error {
 				w.Header().Set("foo", "bar")
 
 				return nil
@@ -1455,7 +1455,7 @@ func TestNewServerWebsocketHeaders(t *testing.T) {
 			Fields: graphql.Fields{
 				"getFoo": &graphql.Field{
 					Type: graphql.Int,
-					Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					Resolve: func(graphql.ResolveParams) (interface{}, error) {
 						return 123, nil
 					},
 				},
