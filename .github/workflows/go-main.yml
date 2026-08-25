@@ -22,7 +22,7 @@ jobs:
         with:
           version: "v2.8.0"
       - name: Run tests
-        run: go test -coverprofile=coverage.out
+        run: go test -coverprofile=coverage.out ./...
       - uses: qltysh/qlty-action/coverage@b413a89d8f3a8b36b9edd20b7ef1ad7ae0a7ac3a # version 2.2.2
         with:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
